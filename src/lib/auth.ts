@@ -57,8 +57,39 @@ export async function logOut() {
 }
 
 export async function sendPasswordReset(email: string) {
-  const { error } = await sb().auth.resetPasswordForEmail(email.trim(), { redirectTo: webLink('/login') });
+  const { error } = await sb().auth.resetPasswordForEmail(email.trim(), { redirectTo: webLink('/new-password') });
   if (error) throw new Error(friendly(error.message));
+}
+
+/** Reads the one-time sign-in from the reset link (in the page address). */
+export async function openResetLink() {
+  if (typeof window === 'undefined') throw new Error('Open the reset link from your email.');
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const err = hash.get('error_description') ?? query.get('error_description');
+  if (err) throw new Error(/expired|invalid/i.test(err) ? 'This reset link has expired or was already used. Request a new one.' : err);
+  const code = query.get('code');
+  const access = hash.get('access_token'), refresh = hash.get('refresh_token');
+  if (code) {
+    const { error } = await sb().auth.exchangeCodeForSession(code);
+    if (error) throw new Error(friendly(error.message));
+  } else if (access && refresh) {
+    const { error } = await sb().auth.setSession({ access_token: access, refresh_token: refresh });
+    if (error) throw new Error(friendly(error.message));
+  } else {
+    const { data } = await sb().auth.getSession();
+    if (!data.session) throw new Error('This reset link is incomplete. Request a new one.');
+  }
+  // Remove the one-time tokens from the address bar.
+  window.history.replaceState(null, '', window.location.pathname);
+}
+
+/** Saves the new password, then signs out so the person logs in with it. */
+export async function finishPasswordReset(password: string) {
+  const { error } = await sb().auth.updateUser({ password });
+  if (error) throw new Error(friendly(error.message));
+  await sb().auth.signOut();
+  setSetting('signedIn', false);
 }
 
 export const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
