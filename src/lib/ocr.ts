@@ -14,7 +14,7 @@ export interface OcrResult {
   events: ExtractedEvent[];
 }
 
-export async function readScheduleImage(uri: string): Promise<OcrResult> {
+export async function readScheduleImage(uri: string, _onProgress?: (stage: string, fraction?: number) => void): Promise<OcrResult> {
   // Check first so Expo Go shows a clear message instead of crashing.
   if (!NativeModules.TextRecognition) {
     throw new OcrUnavailableError(
@@ -26,4 +26,9 @@ export async function readScheduleImage(uri: string): Promise<OcrResult> {
   const lines: PositionedLine[] = result.blocks.flatMap((b) => b.lines.map((l) => ({ text: l.text, frame: l.frame })));
   const rows = groupIntoRows(lines);
   return { rows, events: parseScheduleText(rows) };
+}
+
+/** PDFs are read in the web version only for now. */
+export async function readSchedulePdf(_uri: string, _onProgress?: (stage: string, fraction?: number) => void): Promise<OcrResult> {
+  throw new OcrUnavailableError('Reading PDFs works in the web version of ScheduLens. On the phone app, take a screenshot of the PDF and choose it as an image.');
 }

@@ -5,6 +5,7 @@ import { parseScheduleText, groupIntoRows, countNeedsReview } from '../parser';
 import { findIssues } from '../conflicts';
 import { findFreeSlots, toBusyBlocks } from '../freeTime';
 import { buildIcs } from '../ics';
+import { checkScheduleFile } from '../fileCheck';
 import type { ScheduleEvent } from '../types';
 
 test('reads common time formats', () => {
@@ -102,4 +103,40 @@ test('exports a weekly .ics file', () => {
   assert.match(ics, /DTSTART:20261012T100000/); // first Monday on or after Oct 7
   assert.match(ics, /RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261218T235959/);
   assert.match(ics, /SUMMARY:HCI\\, II/);
+});
+
+test('joins table cells that wrap onto two lines (PDF and OCR layouts)', () => {
+  const rows = groupIntoRows([
+    { text: 'HCI 2 Human Computer', frame: { top: 100, left: 28, width: 145, height: 13 } },
+    { text: 'Interaction', frame: { top: 115, left: 28, width: 63, height: 13 } },
+    { text: 'TTh', frame: { top: 107, left: 249, width: 24, height: 13 } },
+    { text: '10:30 AM-12:00', frame: { top: 100, left: 294, width: 95, height: 13 } },
+    { text: 'PM', frame: { top: 115, left: 294, width: 20, height: 13 } },
+    { text: 'GE 5', frame: { top: 160, left: 28, width: 40, height: 13 } },
+  ]);
+  assert.equal(rows[0], 'HCI 2 Human Computer  Interaction  TTh  10:30 AM-12:00  PM');
+  assert.equal(rows[1], 'GE 5');
+  const [e] = parseScheduleText(rows[0]);
+  assert.equal(e.title.value, 'HCI 2 Human Computer Interaction');
+  assert.equal(e.startMin.value, 630);
+  assert.equal(e.endMin.value, 720);
+});
+
+test('ignores table borders and flags misread day codes for review', () => {
+  const ev = parseScheduleText('IT 311 Data Structures | MWEF | 8:00-9:00 AM | Room 204 | Prof. Reyes');
+  assert.deepEqual(ev.map((e) => e.weekday.value), [1, 3, 5]);
+  assert.equal(ev[0].weekday.confidence, 'low');
+  assert.equal(ev[0].title.value, 'IT 311 Data Structures');
+  assert.equal(ev[0].location.value, 'Room 204');
+  assert.equal(ev[0].organizer.value, 'Prof. Reyes');
+});
+
+test('checks schedule files before reading them', () => {
+  assert.deepEqual(checkScheduleFile('sched.PNG', 'image/png', 1000), { kind: 'image' });
+  assert.deepEqual(checkScheduleFile('sched.jpeg', undefined, 1000), { kind: 'image' });
+  assert.deepEqual(checkScheduleFile('sched.pdf', 'application/pdf', 1000), { kind: 'pdf' });
+  assert.ok('error' in checkScheduleFile('notes.txt', 'text/plain', 10));
+  assert.ok('error' in checkScheduleFile('IMG_1.HEIC', 'image/heic', 10));
+  assert.ok('error' in checkScheduleFile('big.png', 'image/png', 11 * 1024 * 1024));
+  assert.ok('error' in checkScheduleFile('empty.pdf', 'application/pdf', 0));
 });

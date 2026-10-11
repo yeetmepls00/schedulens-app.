@@ -13,30 +13,41 @@ export interface PositionedLine {
 }
 
 /**
- * Table schedules come back from OCR as separate cells. This joins cells that
- * sit on the same horizontal row, left to right, so each row reads as one line.
+ * Table schedules come back from OCR (or a PDF) as separate cells. This joins
+ * cells that sit on the same table row, left to right, so each row reads as
+ * one line. Cells that wrap onto two lines ("Human Computer / Interaction")
+ * still join their row, because their lines overlap the row's other cells
+ * vertically.
  */
 export function groupIntoRows(lines: PositionedLine[]): string[] {
   const withFrames = lines.filter((l) => l.frame);
   if (withFrames.length < lines.length / 2) return lines.map((l) => l.text);
-  const sorted = [...withFrames].sort((a, b) => a.frame!.top - b.frame!.top);
-  const rows: PositionedLine[][] = [];
-  for (const line of sorted) {
-    const f = line.frame!;
-    const mid = f.top + f.height / 2;
-    const row = rows.find((r) => {
-      const rf = r[0].frame!;
-      return Math.abs((rf.top + rf.height / 2) - mid) < Math.max(rf.height, f.height) * 0.6;
-    });
-    if (row) row.push(line);
-    else rows.push([line]);
+  const items = [...withFrames].sort((a, b) => a.frame!.top - b.frame!.top);
+  // Union-find: two lines are in the same row when they overlap vertically by
+  // at least 30% of the smaller line's height.
+  const parent = items.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < items.length; i++) {
+    const a = items[i].frame!;
+    for (let j = i + 1; j < items.length; j++) {
+      const b = items[j].frame!;
+      if (b.top > a.top + a.height) break;
+      const overlap = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+      if (overlap >= 0.3 * Math.min(a.height, b.height)) parent[find(j)] = find(i);
+    }
   }
-  return rows.map((r) =>
-    r
-      .sort((a, b) => a.frame!.left - b.frame!.left)
-      .map((l) => l.text)
-      .join('  '),
-  );
+  const groups = new Map<number, PositionedLine[]>();
+  items.forEach((l, i) => { const r = find(i); groups.set(r, [...(groups.get(r) ?? []), l]); });
+  const sameColumn = (a: PositionedLine, b: PositionedLine) =>
+    Math.min(a.frame!.left + a.frame!.width, b.frame!.left + b.frame!.width) - Math.max(a.frame!.left, b.frame!.left) > 0;
+  return [...groups.values()]
+    .sort((a, b) => Math.min(...a.map((l) => l.frame!.top)) - Math.min(...b.map((l) => l.frame!.top)))
+    .map((r) =>
+      r
+        .sort((a, b) => (sameColumn(a, b) ? a.frame!.top - b.frame!.top : a.frame!.left - b.frame!.left))
+        .map((l) => l.text)
+        .join('  '),
+    );
 }
 
 const T = String.raw`\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|am|pm|a|p|h)?`;
@@ -87,11 +98,19 @@ function readDays(text: string): { days: Weekday[]; strong: boolean; span: strin
     const d = parseDays(code[0]);
     if (d) return { ...d, span: code[0] };
   }
+  // OCR sometimes adds a stray letter to a day code ("MWEF" for "MWF").
+  // Use the corrected days but mark them for review.
+  const noisy = text.match(/\b[MTWFS][MTWFSEhH]{1,5}\b/);
+  if (noisy) {
+    const d = parseDays(noisy[0].replace(/[EH]/g, (c) => (c === 'H' ? 'h' : '')));
+    if (d) return { days: d.days, strong: false, span: noisy[0] };
+  }
   return undefined;
 }
 
 function cleanTitle(text: string): string {
   return text
+    .replace(/\s*[|¦]\s*/g, ' ') // table borders read as "|"
     .replace(/\s{2,}/g, ' ')
     .replace(/^[\s|:;,\-–]+|[\s|:;,\-–]+$/g, '')
     .trim();
@@ -122,17 +141,17 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     let location: string | undefined;
     const room = rest.match(ROOM);
     if (room) {
-      location = room[0].replace(/^rm\.?/i, 'Room').trim();
+      location = room[0].replace(/^rm\.?/i, 'Room').replace(/\s+/g, ' ').trim();
       rest = rest.replace(room[0], ' ');
     }
     let organizer: string | undefined;
     const labeled = rest.match(ORGANIZER_LABEL);
     const titled = rest.match(ORGANIZER);
     if (labeled) {
-      organizer = labeled[1].trim();
+      organizer = labeled[1].replace(/\s+/g, ' ').trim();
       rest = rest.replace(labeled[0], ' ');
     } else if (titled) {
-      organizer = titled[0].trim();
+      organizer = titled[0].replace(/\s+/g, ' ').trim();
       rest = rest.replace(titled[0], ' ');
     }
     const title = cleanTitle(rest);

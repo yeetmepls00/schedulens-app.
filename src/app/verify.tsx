@@ -11,14 +11,22 @@ import { DAY_SHORT, formatTime, parseTime } from '../lib/time';
 import type { ExtractedEvent, ScheduleEvent, Weekday } from '../lib/types';
 import { colors, space } from '../theme/tokens';
 
-interface Row { title: string; weekday?: Weekday; start: string; end: string; location: string; organizer: string; src: ExtractedEvent; keep: boolean }
+interface Row { title: string; weekday?: Weekday; start: string; end: string; location: string; organizer: string; src: ExtractedEvent; keep: boolean; duplicate: boolean }
 
-const toRow = (e: ExtractedEvent): Row => ({
+// The same class (title, day and times) already in the calendar, for example
+// after importing the same schedule twice.
+const sameClass = (a: { title: string; weekday?: number; startMin?: number; endMin?: number }, b: ScheduleEvent) =>
+  a.title.trim().toLowerCase() === b.title.trim().toLowerCase() && a.weekday === b.weekday && a.startMin === b.startMin && a.endMin === b.endMin;
+
+const toRow = (existing: ScheduleEvent[]) => (e: ExtractedEvent): Row => {
+  const duplicate = existing.some((x) => sameClass({ title: e.title.value ?? '', weekday: e.weekday.value, startMin: e.startMin.value, endMin: e.endMin.value }, x));
+  return {
   title: e.title.value ?? '', weekday: e.weekday.value,
   start: e.startMin.value !== undefined ? formatTime(e.startMin.value) : '',
   end: e.endMin.value !== undefined ? formatTime(e.endMin.value) : '',
-  location: e.location.value ?? '', organizer: e.organizer.value ?? '', src: e, keep: true,
-});
+  location: e.location.value ?? '', organizer: e.organizer.value ?? '', src: e, keep: !duplicate, duplicate,
+  };
+};
 
 function check(r: Row) {
   const s = parseTime(r.start)?.minutes, e = parseTime(r.end)?.minutes;
@@ -34,7 +42,7 @@ function check(r: Row) {
 export default function Verify() {
   const draft = getDraft();
   const existing = useEvents();
-  const [rows, setRows] = useState<Row[]>(() => (draft?.events ?? []).map(toRow));
+  const [rows, setRows] = useState<Row[]>(() => (draft?.events ?? []).map(toRow(existing)));
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const set = (i: number, k: keyof Row, v: unknown) => {
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
@@ -81,6 +89,7 @@ export default function Verify() {
               <T v="captionStrong" color={colors.textSecondary}>Event {i + 1}</T>
               <Chip label={r.keep ? 'Included' : 'Skipped'} on={r.keep} onPress={() => set(i, 'keep', !r.keep)} />
             </View>
+            {r.duplicate && <Badge tone="warning" label="Already in your calendar, skipped so it isn’t added twice" />}
             <T v="caption" color={colors.textSecondary}>Read as: “{r.src.sourceText}”</T>
             {r.keep && <>
               <Field label="Title" value={r.title} onChangeText={(v) => set(i, 'title', v)} error={errors.title} tone={tone(i, 'title', r.src.title.confidence)} />
