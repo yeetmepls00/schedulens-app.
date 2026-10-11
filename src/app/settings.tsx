@@ -22,7 +22,7 @@ export default function Settings() {
       {saved && <Banner tone="success" title="Saved" message="Your settings were updated." />}
       <Card style={{ gap: space.md }}>
         <T v="cardTitle">Profile</T>
-        <Field label="Display name" value={name} onChangeText={(v) => { setName(v); setSaved(false); }} helper="Shown to group members." />
+        <Field label="Username" value={name} onChangeText={(v) => { setName(v); setSaved(false); }} helper="Shown to group members." />
       </Card>
       <Button kind="tonal" icon="options-outline" label="Schedule rules" onPress={() => router.push('/rules')} />
       <Button kind="tonal" icon="shield-checkmark-outline" label="Data & privacy" onPress={() => router.push('/privacy')} />

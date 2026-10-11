@@ -18,7 +18,7 @@ export default function SignUp() {
   const longEnough = password.length >= 8;
   const hasNumber = /\d/.test(password);
   const errs = {
-    name: !name.trim() ? 'Enter your full name.' : undefined,
+    name: !name.trim() ? 'Enter a username.' : undefined,
     email: !validEmail(email) ? 'Enter a valid email address, like name@example.com.' : undefined,
     password: !longEnough || !hasNumber ? 'Use at least 8 characters, including a number.' : undefined,
     confirm: confirm !== password || !confirm ? 'Passwords don’t match.' : undefined,
@@ -42,7 +42,7 @@ export default function SignUp() {
       <T v="welcome">Create your account</T>
       {!authConfigured && <Banner tone="warning" title="Sign-up is not set up" message="Add the Supabase URL and key to the app settings, then reload." />}
       {error && <Banner tone="error" title="Couldn’t create your account" message={error} />}
-      <Field label="Full name" value={name} onChangeText={setName} error={show('name')} autoComplete="name" />
+      <Field label="Username" value={name} onChangeText={setName} error={show('name')} autoComplete="username" autoCapitalize="none" />
       <Field label="Email" value={email} onChangeText={setEmail} error={show('email')} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
       <Field label="Password" value={password} onChangeText={setPassword} error={show('password')} secureTextEntry autoComplete="new-password"
         helper={`${longEnough ? '✓' : '○'} At least 8 characters   ${hasNumber ? '✓' : '○'} Includes a number`} />
