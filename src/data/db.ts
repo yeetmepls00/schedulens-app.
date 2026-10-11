@@ -36,12 +36,30 @@ const SCHEMA = `
 // worker that needs a moment to load, so it is opened asynchronously first and
 // the app waits for `dbReady` before showing any screen (see app/_layout.tsx).
 let db: SQLite.SQLiteDatabase;
+
+// Some phone browsers cannot keep a saved database file (or take too long to
+// open one). Rather than leave a blank screen, fall back to a temporary
+// in-memory database for that visit.
+async function openWeb() {
+  // The web database's quick (synchronous) reads need SharedArrayBuffer, which
+  // in-app browsers such as Messenger do not provide. The app explains this
+  // instead of starting (see app/_layout.tsx).
+  if (typeof SharedArrayBuffer === 'undefined') throw new Error('unsupported browser');
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+  try {
+    const d = await Promise.race([SQLite.openDatabaseAsync('schedulens.db'), timeout]);
+    await d.execAsync(SCHEMA);
+    db = d;
+  } catch (e) {
+    console.warn('Saved storage unavailable, using temporary storage', e);
+    const d = await SQLite.openDatabaseAsync(':memory:');
+    await d.execAsync(SCHEMA.replace('PRAGMA journal_mode = WAL;', ''));
+    db = d;
+  }
+}
 export const dbReady: Promise<void> =
   Platform.OS === 'web'
-    ? SQLite.openDatabaseAsync('schedulens.db').then(async (d) => {
-        await d.execAsync(SCHEMA);
-        db = d;
-      })
+    ? openWeb()
     : Promise.resolve();
 if (Platform.OS !== 'web') {
   db = SQLite.openDatabaseSync('schedulens.db');

@@ -31,10 +31,15 @@ export async function logIn(email: string, password: string) {
   setSetting('signedIn', true);
 }
 
+// Email links (confirm, reset) must point back at the site the person is
+// using, not at Supabase's default Site URL.
+const webLink = (path: string) =>
+  typeof window !== 'undefined' && window.location ? window.location.origin + path : undefined;
+
 /** Creates the account. Returns true when the email still needs confirming. */
 export async function signUp(fullName: string, email: string, password: string): Promise<boolean> {
   const { data, error } = await sb().auth.signUp({
-    email: email.trim(), password, options: { data: { display_name: fullName.trim() } },
+    email: email.trim(), password, options: { data: { display_name: fullName.trim() }, emailRedirectTo: webLink('/login') },
   });
   if (error) throw new Error(friendly(error.message));
   setSetting('displayName', fullName.trim());
@@ -52,7 +57,7 @@ export async function logOut() {
 }
 
 export async function sendPasswordReset(email: string) {
-  const { error } = await sb().auth.resetPasswordForEmail(email.trim());
+  const { error } = await sb().auth.resetPasswordForEmail(email.trim(), { redirectTo: webLink('/login') });
   if (error) throw new Error(friendly(error.message));
 }
 
