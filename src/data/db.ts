@@ -37,14 +37,17 @@ const SCHEMA = `
 // the app waits for `dbReady` before showing any screen (see app/_layout.tsx).
 let db: SQLite.SQLiteDatabase;
 
-// Some phone browsers cannot keep a saved database file (or take too long to
+// Some browsers cannot keep a saved database file (or take too long to
 // open one). Rather than leave a blank screen, fall back to a temporary
 // in-memory database for that visit.
 async function openWeb() {
   // The web database's quick (synchronous) reads need SharedArrayBuffer, which
-  // in-app browsers such as Messenger do not provide. The app explains this
-  // instead of starting (see app/_layout.tsx).
-  if (typeof SharedArrayBuffer === 'undefined') throw new Error('unsupported browser');
+  // in-app browsers such as Messenger do not provide. Use the backup storage.
+  if (typeof SharedArrayBuffer === 'undefined') {
+    const { openFallbackDb } = await import('./fallbackDb');
+    db = (await openFallbackDb(SCHEMA)) as unknown as SQLite.SQLiteDatabase;
+    return;
+  }
   const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
   try {
     const d = await Promise.race([SQLite.openDatabaseAsync('schedulens.db'), timeout]);
