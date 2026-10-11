@@ -29,7 +29,7 @@ export function sb(): SupabaseClient {
 async function ensureSignedIn(displayName: string) {
   const { data } = await sb().auth.getSession();
   if (data.session) return data.session.user.id;
-  const res = await sb().auth.signInAnonymously({ options: { data: { display_name: displayName } } });
+  const res = await sb().auth.signInAnonymously({ options: { data: { username: displayName } } });
   if (res.error) throw res.error;
   return res.data.user!.id;
 }
@@ -78,13 +78,13 @@ export async function shareBusy(groupId: string, events: ScheduleEvent[]) {
 }
 
 export async function loadMembers(groupId: string): Promise<MemberBusy[]> {
-  const { data: members, error } = await sb().from('group_members').select('user_id, display_name').eq('group_id', groupId);
+  const { data: members, error } = await sb().from('group_members').select('user_id, username').eq('group_id', groupId);
   if (error) throw error;
   const { data: blocks, error: e2 } = await sb().from('busy_blocks').select('user_id, weekday, start_min, end_min').eq('group_id', groupId);
   if (e2) throw e2;
   return (members ?? []).map((m) => ({
     userId: m.user_id,
-    displayName: m.display_name,
+    displayName: m.username,
     blocks: (blocks ?? [])
       .filter((b) => b.user_id === m.user_id)
       .map((b) => ({ weekday: b.weekday, startMin: b.start_min, endMin: b.end_min })),

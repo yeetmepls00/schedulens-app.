@@ -26,7 +26,7 @@ const friendly = (message: string) =>
 export async function logIn(email: string, password: string) {
   const { data, error } = await sb().auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw new Error(friendly(error.message));
-  const name = (data.user?.user_metadata?.display_name as string | undefined) ?? '';
+  const name = ((data.user?.user_metadata?.username ?? data.user?.user_metadata?.display_name) as string | undefined) ?? '';
   if (name && !getSetting('displayName', '')) setSetting('displayName', name);
   setSetting('signedIn', true);
 }
@@ -39,7 +39,7 @@ const webLink = (path: string) =>
 /** Creates the account. Returns true when the email still needs confirming. */
 export async function signUp(fullName: string, email: string, password: string): Promise<boolean> {
   const { data, error } = await sb().auth.signUp({
-    email: email.trim(), password, options: { data: { display_name: fullName.trim() }, emailRedirectTo: webLink('/login') },
+    email: email.trim(), password, options: { data: { username: fullName.trim() }, emailRedirectTo: webLink('/login') },
   });
   if (error) throw new Error(friendly(error.message));
   setSetting('displayName', fullName.trim());

@@ -13,7 +13,7 @@ create table if not exists groups (
 create table if not exists group_members (
   group_id uuid references groups(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
-  display_name text not null check (char_length(display_name) between 1 and 40),
+  username text not null check (char_length(username) between 1 and 40),
   joined_at timestamptz not null default now(),
   primary key (group_id, user_id)
 );
@@ -49,7 +49,7 @@ begin
   insert into groups (name, code, owner)
   values (group_name, upper(substr(md5(random()::text), 1, 6)), auth.uid())
   returning * into g;
-  insert into group_members (group_id, user_id, display_name) values (g.id, auth.uid(), member_name);
+  insert into group_members (group_id, user_id, username) values (g.id, auth.uid(), member_name);
   return g;
 end $$;
 
@@ -60,9 +60,9 @@ begin
   select * into g from groups where code = invite_code;
   if g.id is null then raise exception 'not found'; end if;
   if g.expires_at < now() then raise exception 'expired'; end if;
-  insert into group_members (group_id, user_id, display_name)
+  insert into group_members (group_id, user_id, username)
   values (g.id, auth.uid(), member_name)
-  on conflict (group_id, user_id) do update set display_name = excluded.display_name;
+  on conflict (group_id, user_id) do update set username = excluded.username;
   return g;
 end $$;
 
