@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { Banner, Button, Card, Field, Screen, T } from '../components/ui';
+import { logOut } from '../lib/auth';
 import { deleteAllData, getRules, getSetting, setSetting } from '../data/db';
 import { colors, space } from '../theme/tokens';
 
@@ -62,6 +63,8 @@ export default function Settings() {
         <Field label="A break is at least (minutes)" value={brk} onChangeText={setBrk} keyboardType="number-pad" error={errs.brk} />
         <Field label="Warn after continuous hours" value={maxRun} onChangeText={setMaxRun} keyboardType="number-pad" error={errs.maxRun} />
       </Card>
+      <Button kind="secondary" icon="log-out-outline" label="Log out" onPress={async () => { await logOut(); router.dismissAll(); router.replace('/login'); }} />
+      <T v="caption" color={colors.textSecondary}>You will need to sign in again.</T>
       <Button kind="text" icon="trash" label="Delete all my data" onPress={wipe} />
     </Screen>
   );

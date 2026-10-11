@@ -13,7 +13,8 @@ const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const groupsConfigured = Boolean(url && anonKey);
 let client: SupabaseClient | null = null;
-function sb(): SupabaseClient {
+/** The shared Supabase client, also used for log in and sign up (see auth.ts). */
+export function sb(): SupabaseClient {
   if (!groupsConfigured) throw new Error('Group sharing is not set up yet. Add your Supabase keys to the .env file.');
   client ??= createClient(url!, anonKey!, {
     // Keeps you signed in between app launches so you stay in your groups.

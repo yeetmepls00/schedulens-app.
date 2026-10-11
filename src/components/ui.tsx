@@ -157,6 +157,17 @@ export const Chip = ({ label, on, onPress }: { label: string; on: boolean; onPre
   </Pressable>
 );
 
+/** Square checkbox with its label. The whole row is the touch target. */
+export const Checkbox = ({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) => (
+  <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }}
+    style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: TOUCH }}>
+    <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? colors.strawberryStrong : colors.textSecondary, backgroundColor: on ? colors.strawberryStrong : colors.white, alignItems: 'center', justifyContent: 'center' }}>
+      {on && <Icon name="checkmark" size={16} color={colors.onAccent} />}
+    </View>
+    <Text style={[type.body, { color: colors.text, flex: 1 }]}>{label}</Text>
+  </Pressable>
+);
+
 export const Empty = ({ icon, title, message, action, onAction }: { icon: IconName; title: string; message: string; action?: string; onAction?: () => void }) => (
   <Card style={{ alignItems: 'center', gap: space.sm, paddingVertical: space.xxl }}>
     <View style={s.emptyIcon}><Icon name={icon} size={32} color={colors.strawberry} /></View>
