@@ -1,7 +1,6 @@
 // Home: today's events, warnings, and shortcuts.
 import { router } from 'expo-router';
-import { useCallback } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
 import { Banner, Empty, Icon, Screen, T, type IconName } from '../../components/ui';
 import { getSetting } from '../../data/db';
@@ -11,24 +10,14 @@ import type { Weekday } from '../../lib/types';
 import { colors, radius, space } from '../../theme/tokens';
 
 export default function Home() {
-  const isWeb = Platform.OS === 'web';
-  const schedule = useSchedule();
-  
-  const events = isWeb ? [] : schedule.events;
-  const issues = isWeb ? [] : schedule.issues;
-
-  const issueFor = useCallback(
-    (id: string) => (isWeb ? undefined : schedule.issueFor(id)),
-    [isWeb, schedule]
-  );
-
+  const { events, issues, issueFor } = useSchedule();
   const now = new Date();
   const today = now.getDay() as Weekday;
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const todays = events.filter((e) => e.weekday === today);
   const upcoming = todays.filter((e) => e.endMin > nowMin);
   const todaysIssues = issues.filter((i) => i.weekday === today);
-  const name = isWeb ? '' : getSetting('displayName', '');
+  const name = getSetting('displayName', '');
   const hello = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
   return (

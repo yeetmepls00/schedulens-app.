@@ -1,73 +1,165 @@
+// Local storage on the phone (SQLite). Your personal schedule never leaves
+// the device unless you export it or share free/busy times with a group.
+import * as SQLite from 'expo-sqlite';
 import { useSyncExternalStore } from 'react';
+import { Platform } from 'react-native';
+import type { ScheduleEvent, Weekday } from '../lib/types';
+import { DEFAULT_RULES, type IssueRules } from '../lib/conflicts';
 
-// --- Types & Core State ----------------------------------------------------
-export interface AppEvent {
-  id: string;
-  title: string;
-  date: string;
-  startTime?: string;
-  endTime?: string;
-  location?: string;
-  description?: string;
-  group?: string;
+const SCHEMA = `
+  PRAGMA journal_mode = WAL;
+  CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    weekday INTEGER NOT NULL,
+    start_min INTEGER NOT NULL,
+    end_min INTEGER NOT NULL,
+    location TEXT,
+    organizer TEXT,
+    source_file_id TEXT
+  );
+  CREATE TABLE IF NOT EXISTS files (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    uri TEXT,
+    kind TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    event_count INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+  );
+`;
+
+// On phones the database opens instantly. On the web it runs in a background
+// worker that needs a moment to load, so it is opened asynchronously first and
+// the app waits for `dbReady` before showing any screen (see app/_layout.tsx).
+let db: SQLite.SQLiteDatabase;
+export const dbReady: Promise<void> =
+  Platform.OS === 'web'
+    ? SQLite.openDatabaseAsync('schedulens.db').then(async (d) => {
+        await d.execAsync(SCHEMA);
+        db = d;
+      })
+    : Promise.resolve();
+if (Platform.OS !== 'web') {
+  db = SQLite.openDatabaseSync('schedulens.db');
+  db.execSync(SCHEMA);
 }
 
-export interface AppFile {
+export interface SavedFile {
   id: string;
   name: string;
-  uri: string;
-  type: string;
+  uri: string | null;
+  kind: 'image' | 'pdf' | 'manual';
+  createdAt: string;
+  eventCount: number;
 }
 
-interface StoreState {
-  events: AppEvent[];
-  files: AppFile[];
-}
-
-let memoryState: StoreState = {
-  events: [],
-  files: [],
+type EventRow = {
+  id: string; title: string; weekday: number; start_min: number; end_min: number;
+  location: string | null; organizer: string | null; source_file_id: string | null;
 };
 
+const fromRow = (r: EventRow): ScheduleEvent => ({
+  id: r.id,
+  title: r.title,
+  weekday: r.weekday as Weekday,
+  startMin: r.start_min,
+  endMin: r.end_min,
+  location: r.location ?? undefined,
+  organizer: r.organizer ?? undefined,
+  sourceFileId: r.source_file_id ?? undefined,
+});
+
+export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+// --- A tiny store so screens re-render when data changes ---------------------
+let version = 0;
 const listeners = new Set<() => void>();
-
-export function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function getState(): StoreState {
-  return memoryState;
-}
-
-export function setState(newState: Partial<StoreState>) {
-  memoryState = { ...memoryState, ...newState };
-  listeners.forEach((listener) => listener());
-}
-
-// --- Cached Selectors (Fixes the getSnapshot infinite loop error) -----------
-const getEventsSnapshot = () => memoryState.events;
-const getFilesSnapshot = () => memoryState.files;
-
-export const useEvents = () => useSyncExternalStore(subscribe, getEventsSnapshot);
-export const useFiles = () => useSyncExternalStore(subscribe, getFilesSnapshot);
-
-// --- Actions ---------------------------------------------------------------
-export const db = {
-  getEvents: () => memoryState.events,
-  addEvent: (event: AppEvent) => {
-    setState({ events: [...memoryState.events, event] });
-  },
-  removeEvent: (id: string) => {
-    setState({ events: memoryState.events.filter((e) => e.id !== id) });
-  },
-  getFiles: () => memoryState.files,
-  addFile: (file: AppFile) => {
-    setState({ files: [...memoryState.files, file] });
-  },
-  removeFile: (id: string) => {
-    setState({ files: memoryState.files.filter((f) => f.id !== id) });
-  },
+const changed = () => {
+  version++;
+  listeners.forEach((l) => l());
 };
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+let cache: { v: number; events: ScheduleEvent[]; files: SavedFile[] } = { v: -1, events: [], files: [] };
+function snapshot() {
+  if (cache.v !== version) {
+    const events = db.getAllSync<EventRow>('SELECT * FROM events ORDER BY weekday, start_min').map(fromRow);
+    const files = db
+      .getAllSync<{ id: string; name: string; uri: string | null; kind: SavedFile['kind']; created_at: string; event_count: number }>(
+        'SELECT * FROM files ORDER BY created_at DESC',
+      )
+      .map((f) => ({ id: f.id, name: f.name, uri: f.uri, kind: f.kind, createdAt: f.created_at, eventCount: f.event_count }));
+    cache = { v: version, events, files };
+  }
+  return cache;
+}
+export const useEvents = () => useSyncExternalStore(subscribe, () => snapshot().events);
+export const useFiles = () => useSyncExternalStore(subscribe, () => snapshot().files);
+
+// --- Events ------------------------------------------------------------------
+export function getEvent(id: string): ScheduleEvent | undefined {
+  const r = db.getFirstSync<EventRow>('SELECT * FROM events WHERE id = ?', id);
+  return r ? fromRow(r) : undefined;
+}
+
+export function saveEvent(e: ScheduleEvent) {
+  db.runSync(
+    `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, e.sourceFileId ?? null,
+  );
+  changed();
+}
+
+export function deleteEvent(id: string) {
+  db.runSync('DELETE FROM events WHERE id = ?', id);
+  changed();
+}
+
+/** Saves a verified import in one transaction, so a failure saves nothing. */
+export function saveImport(file: Omit<SavedFile, 'eventCount' | 'createdAt'>, events: ScheduleEvent[]) {
+  db.withTransactionSync(() => {
+    db.runSync(
+      'INSERT OR REPLACE INTO files (id, name, uri, kind, created_at, event_count) VALUES (?, ?, ?, ?, ?, ?)',
+      file.id, file.name, file.uri, file.kind, new Date().toISOString(), events.length,
+    );
+    for (const e of events) {
+      db.runSync(
+        `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, file.id,
+      );
+    }
+  });
+  changed();
+}
+
+export function deleteFile(id: string, alsoEvents: boolean) {
+  db.withTransactionSync(() => {
+    if (alsoEvents) db.runSync('DELETE FROM events WHERE source_file_id = ?', id);
+    db.runSync('DELETE FROM files WHERE id = ?', id);
+  });
+  changed();
+}
+
+export function deleteAllData() {
+  db.execSync('DELETE FROM events; DELETE FROM files;');
+  changed();
+}
+
+// --- Settings ----------------------------------------------------------------
+export function getSetting<T>(key: string, fallback: T): T {
+  const r = db.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key);
+  return r ? (JSON.parse(r.value) as T) : fallback;
+}
+export function setSetting(key: string, value: unknown) {
+  db.runSync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', key, JSON.stringify(value));
+  changed();
+}
+export const getRules = (): IssueRules => getSetting('rules', DEFAULT_RULES);
