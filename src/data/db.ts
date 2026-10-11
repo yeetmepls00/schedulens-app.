@@ -43,7 +43,11 @@ let db: SQLite.SQLiteDatabase;
 async function openWeb() {
   // The web database's quick (synchronous) reads need SharedArrayBuffer, which
   // in-app browsers such as Messenger do not provide. Use the backup storage.
-  if (typeof SharedArrayBuffer === 'undefined') {
+  // Safari's engine (used by every iPhone browser) does not run the web
+  // database reliably either, so it uses the backup storage too.
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const safariEngine = /AppleWebKit/.test(ua) && !/Chrome\//.test(ua);
+  if (typeof SharedArrayBuffer === 'undefined' || safariEngine) {
     const { openFallbackDb } = await import('./fallbackDb');
     db = (await openFallbackDb(SCHEMA)) as unknown as SQLite.SQLiteDatabase;
     return;

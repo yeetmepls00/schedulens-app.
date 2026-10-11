@@ -5,6 +5,7 @@
 // only let members of the same group read each other's busy blocks.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import Storage from 'expo-sqlite/kv-store';
+import { Platform } from 'react-native';
 import type { BusyBlock, ScheduleEvent } from './types';
 import { toBusyBlocks } from './freeTime';
 import { getSetting, setSetting } from '../data/db';
@@ -19,7 +20,8 @@ export function sb(): SupabaseClient {
   if (!groupsConfigured) throw new Error('Group sharing is not set up yet. Add your Supabase keys to the .env file.');
   client ??= createClient(url!, anonKey!, {
     // Keeps you signed in between app launches so you stay in your groups.
-    auth: { storage: Storage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    // On the web the browser's own localStorage is used (works in every browser).
+    auth: { storage: Platform.OS === 'web' ? undefined : Storage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
   });
   return client;
 }
