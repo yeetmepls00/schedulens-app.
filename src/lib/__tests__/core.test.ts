@@ -183,3 +183,15 @@ test('nudging keeps a class inside the day and wraps the weekday', () => {
   assert.equal(e.startMin, 0); assert.equal(e.endMin, 60); assert.equal(e.weekday, 6);
   assert.equal(nudge(ev('A', 1, 480, 495), { endBy: -15 }).endMin, 495);
 });
+
+test('calendar export escapes text, folds long lines, and names the time zone', () => {
+  const e: ScheduleEvent = { ...ev('A', 1, 600, 720), title: 'Lab; Section A', courseCode: 'IT 311', organizer: 'Prof. Reyes', notes: 'Bring laptop' };
+  const ics = buildIcs([e, { ...e, id: 'B', title: 'X'.repeat(120) }], new Date(2026, 9, 7), new Date(2026, 11, 18), new Date(Date.UTC(2026, 9, 1, 3, 4)), 'Asia/Manila');
+  assert.ok(ics.includes('SUMMARY:IT 311 Lab\\; Section A'));
+  assert.match(ics, /X-WR-TIMEZONE:Asia\/Manila/);
+  assert.match(ics, /DTSTAMP:20261001T030400Z/);
+  assert.match(ics, /DESCRIPTION:Instructor: Prof. Reyes\\nNotes: Bring laptop/);
+  assert.ok(ics.split('\r\n').every((l) => l.length <= 75), 'no line longer than 75 characters');
+  assert.equal((ics.match(/BEGIN:VEVENT/g) ?? []).length, 2);
+  assert.match(ics, /UID:A@schedulens/); // stable ids, so importing again updates instead of duplicating
+});

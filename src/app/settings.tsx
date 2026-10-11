@@ -12,7 +12,7 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   function save() { setSetting('displayName', name.trim()); setSaved(true); }
   function wipe() {
-    confirm('Delete all data?', 'This removes every event, file, and setting from this phone. Groups you joined keep your last shared busy times until you leave them.', [
+    confirm('Delete all data?', 'This removes every event and imported file from this device. Groups you joined keep your last shared busy times until you leave them.', [
       { text: 'Delete everything', destructive: true, onPress: () => { deleteAllData(); router.replace('/'); } },
     ]);
   }
@@ -26,6 +26,8 @@ export default function Settings() {
       </Card>
       <Button kind="tonal" icon="options-outline" label="Schedule rules" onPress={() => router.push('/rules')} />
       <Button kind="tonal" icon="shield-checkmark-outline" label="Data & privacy" onPress={() => router.push('/privacy')} />
+      <Button kind="tonal" icon="color-palette-outline" label="Timetable editor" onPress={() => router.push('/timetable')} />
+      <Button kind="tonal" icon="help-circle-outline" label="Help & user manual" onPress={() => router.push('/help')} />
       <Button kind="secondary" icon="log-out-outline" label="Log out" onPress={async () => { await logOut(); router.dismissAll(); router.replace('/login'); }} />
       <T v="caption" color={colors.textSecondary}>You will need to sign in again.</T>
       <Button kind="text" icon="trash" label="Delete all my data" onPress={wipe} />

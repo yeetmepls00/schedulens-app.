@@ -29,7 +29,7 @@ export default function Vault() {
     <Screen title="Vault">
       {error && <Banner tone="warning" title="Cannot export yet" message={error} />}
       <Button kind="tonal" icon="download" label="Export to calendar app (.ics)" disabled={events.length === 0} onPress={doExport} />
-      {files.length === 0 ? <Empty icon="folder-open-outline" title="No saved schedules" message="Schedules you import are kept here, on this phone only." /> :
+      {files.length === 0 ? <Empty icon="folder-open-outline" title="No saved schedules" message="Schedules you import are kept here, on this device only." /> :
         files.map((f) => (
           <Card key={f.id} style={{ gap: space.sm }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
