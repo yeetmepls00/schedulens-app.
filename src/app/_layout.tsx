@@ -39,3 +39,14 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+// If a screen crashes, show what went wrong instead of a blank page, so the
+// problem can be reported and fixed.
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
+      <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>Something went wrong</Text>
+      <Text selectable style={{ fontSize: 13, color: '#555', textAlign: 'center', marginBottom: 16 }}>{String(error?.message ?? error)}</Text>
+      <Text onPress={retry} style={{ fontSize: 16, color: '#C0395A', fontWeight: '600' }}>Try again</Text>
+    </View>
+  );
+}
