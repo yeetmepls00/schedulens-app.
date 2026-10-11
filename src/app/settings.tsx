@@ -1,7 +1,8 @@
 // Settings: name, term dates, warning rules, and deleting all data.
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { confirm } from '../lib/confirm';
 import { Banner, Button, Card, Field, Screen, T } from '../components/ui';
 import { logOut } from '../lib/auth';
 import { deleteAllData, getRules, getSetting, setSetting } from '../data/db';
@@ -35,9 +36,8 @@ export default function Settings() {
     setSaved(true);
   }
   function wipe() {
-    Alert.alert('Delete all data?', 'This removes every event, file, and setting from this phone. Groups you joined keep your last shared busy times until you leave them.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete everything', style: 'destructive', onPress: () => { deleteAllData(); router.replace('/'); } },
+    confirm('Delete all data?', 'This removes every event, file, and setting from this phone. Groups you joined keep your last shared busy times until you leave them.', [
+      { text: 'Delete everything', destructive: true, onPress: () => { deleteAllData(); router.replace('/'); } },
     ]);
   }
 
@@ -63,6 +63,7 @@ export default function Settings() {
         <Field label="A break is at least (minutes)" value={brk} onChangeText={setBrk} keyboardType="number-pad" error={errs.brk} />
         <Field label="Warn after continuous hours" value={maxRun} onChangeText={setMaxRun} keyboardType="number-pad" error={errs.maxRun} />
       </Card>
+      <Button kind="tonal" icon="shield-checkmark-outline" label="Data & privacy" onPress={() => router.push('/privacy')} />
       <Button kind="secondary" icon="log-out-outline" label="Log out" onPress={async () => { await logOut(); router.dismissAll(); router.replace('/login'); }} />
       <T v="caption" color={colors.textSecondary}>You will need to sign in again.</T>
       <Button kind="text" icon="trash" label="Delete all my data" onPress={wipe} />

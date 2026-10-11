@@ -5,7 +5,7 @@
 //   1.1 Welcome -> I already have an account -> 1.2 Log In -> 2.1 Home
 // Welcome shows on first launch only; after that the app opens on Log In
 // until you are signed in.
-import { getSetting, setSetting } from '../data/db';
+import { deleteAllData, getSetting, setSetting } from '../data/db';
 import { groupsConfigured, sb } from './groups';
 
 export const authConfigured = groupsConfigured;
@@ -57,3 +57,12 @@ export async function sendPasswordReset(email: string) {
 }
 
 export const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+
+/** 4.6 Delete account: removes the online account (and its group data), then this phone's data. */
+export async function deleteAccount() {
+  const { data } = await sb().auth.getSession();
+  const error = data.session ? (await sb().rpc('delete_my_account')).error : null;
+  if (error) throw new Error('Could not delete your online account. Check your connection and try again.');
+  await sb().auth.signOut().catch(() => {});
+  deleteAllData();
+}

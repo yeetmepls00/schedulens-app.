@@ -1,18 +1,19 @@
 // Groups: find shared free time. Only busy blocks (day + start + end) leave the phone.
-import { useEffect, useState } from 'react';
-import { Share, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Screen, T } from '../../components/ui';
-import { getSetting, setSetting, useEvents } from '../../data/db';
+import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
-import { createGroup, groupsConfigured, joinGroup, leaveGroup, loadMembers, shareBusy, type Group, type MemberBusy } from '../../lib/groups';
+import { createGroup, groupsConfigured, leaveGroup, loadMembers, saveGroups, savedGroups, shareBusy, type Group, type MemberBusy } from '../../lib/groups';
 import { DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
 import { colors, space } from '../../theme/tokens';
 
 export default function Groups() {
   const events = useEvents();
-  const [groups, setGroups] = useState<Group[]>(() => getSetting<Group[]>('groups', []));
+  const [groups, setGroups] = useState<Group[]>(savedGroups);
+  const params = useLocalSearchParams<{ open?: string }>();
   const [open, setOpen] = useState<Group | null>(null);
   const [members, setMembers] = useState<MemberBusy[]>([]);
   const [day, setDay] = useState<Weekday>(new Date().getDay() as Weekday);
@@ -22,7 +23,13 @@ export default function Groups() {
   const [error, setError] = useState<string | null>(null);
   const displayName = getSetting('displayName', '');
 
-  const save = (g: Group[]) => { setGroups(g); setSetting('groups', g); };
+  const save = (g: Group[]) => { setGroups(g); saveGroups(g); };
+  // Coming back from 4.3 Join Group: reload the list and open the joined group.
+  useFocusEffect(useCallback(() => {
+    const list = savedGroups();
+    setGroups(list);
+    if (params.open) { const g = list.find((x) => x.id === params.open); if (g) setOpen(g); router.setParams({ open: undefined }); }
+  }, [params.open]));
   async function run(fn: () => Promise<void>) {
     setBusy(true); setError(null);
     try { await fn(); } catch (e) { setError(e instanceof Error ? e.message : 'Something went wrong. Check your internet connection.'); }
@@ -51,12 +58,10 @@ export default function Groups() {
       <Screen title={open.name} back={false} right={<Button kind="text" label="Close" onPress={() => setOpen(null)} />}>
         <Banner tone="matcha" title="Private by design" message="Members see only when you are busy, never what your events are." />
         {error && <Banner tone="error" title="Could not load" message={error} />}
-        <Card style={{ alignItems: 'center', gap: space.sm }}>
-          <QRCode value={open.code} size={140} color={colors.text} />
-          <T v="section">{open.code}</T>
-          <T v="caption" color={colors.textSecondary}>Invite expires {new Date(open.expiresAt).toLocaleDateString()}</T>
-          <Button kind="secondary" label="Share invite code" icon="share-social" onPress={() => Share.share({ message: `Join my ScheduLens group with code ${open.code}` })} />
-        </Card>
+        <View style={{ flexDirection: 'row', gap: space.md }}>
+          <Button kind="secondary" label="Invite" icon="person-add-outline" style={{ flex: 1 }}
+            onPress={() => router.push({ pathname: '/invite', params: { name: open.name, code: open.code, expiresAt: open.expiresAt } })} />
+        </View>
         <T v="section">{members.length} {members.length === 1 ? 'member' : 'members'}</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{members.map((m) => <Badge key={m.userId} tone="neutral" label={m.displayName} />)}</View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -90,7 +95,7 @@ export default function Groups() {
       <Card style={{ gap: space.md }}>
         <T v="cardTitle">Join with a code</T>
         <Field label="Invite code" value={code} onChangeText={setCode} autoCapitalize="characters" />
-        <Button kind="secondary" label="Join" loading={busy} disabled={!code.trim()} onPress={() => run(async () => { const g = await joinGroup(code, displayName, events); save([...groups.filter((x) => x.id !== g.id), g]); setCode(''); setOpen(g); })} />
+        <Button kind="secondary" label="Join" loading={busy} disabled={!code.trim()} onPress={() => { router.push({ pathname: '/join', params: { code: code.trim().toUpperCase() } }); setCode(''); }} />
       </Card>
     </Screen>
   );

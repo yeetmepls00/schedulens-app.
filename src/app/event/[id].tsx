@@ -1,7 +1,8 @@
 // Add or edit one event. "new" as the id means a new event.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { confirm } from '../../lib/confirm';
 import { Badge, Banner, Button, Chip, Field, Screen, T } from '../../components/ui';
 import { deleteEvent, getEvent, getRules, newId, saveEvent, useEvents } from '../../data/db';
 import { findIssues } from '../../lib/conflicts';
@@ -42,9 +43,8 @@ export default function EventForm() {
     router.back();
   }
   function remove() {
-    Alert.alert('Delete this event?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { deleteEvent(old!.id); router.back(); } },
+    confirm('Delete this event?', 'This cannot be undone.', [
+      { text: 'Delete', destructive: true, onPress: () => { deleteEvent(old!.id); router.back(); } },
     ]);
   }
   const err = (k: string) => (tried ? errors[k] : undefined);

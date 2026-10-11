@@ -1,4 +1,4 @@
-// Calendar: Day, Week, List, and Heatmap views of the weekly schedule.
+// Calendar: Day, Week, Month, List, and Heatmap views of the weekly schedule.
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -9,7 +9,7 @@ import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime } from '../../lib/time
 import type { ScheduleEvent, Weekday } from '../../lib/types';
 import { colors, radius, space } from '../../theme/tokens';
 
-type View_ = 'day' | 'week' | 'list' | 'heatmap';
+type View_ = 'day' | 'week' | 'month' | 'list' | 'heatmap';
 const WEEK: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 const START = 7 * 60;
 const END = 21 * 60;
@@ -22,7 +22,7 @@ export default function Calendar() {
 
   return (
     <Screen title="Calendar" right={add}>
-      <Segmented value={view} onChange={setView} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
+      <Segmented value={view} onChange={setView} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
       {events.length === 0 ? (
         <Empty icon="calendar-outline" title="Your calendar is empty" message="Import a schedule or add an event." action="Add event" onAction={() => router.push('/event/new')} />
       ) : view === 'day' ? (
@@ -35,6 +35,8 @@ export default function Calendar() {
         </>
       ) : view === 'week' ? (
         <WeekGrid events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} />
+      ) : view === 'month' ? (
+        <MonthView events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} issueFor={issueFor} />
       ) : view === 'list' ? (
         WEEK.filter((d) => events.some((e) => e.weekday === d)).map((d) => (
           <View key={d} style={{ gap: space.sm }}>
@@ -118,6 +120,61 @@ function Heatmap({ events }: { events: ScheduleEvent[] }) {
           <T v="caption" color={colors.textSecondary}>Total scheduled time across the week: {formatDuration(totals.reduce((s, t) => s + t.min, 0))}</T>
         </View>
       )}
+    </>
+  );
+}
+
+/** 2.2 Calendar – Month. Classes repeat weekly, so each date shows that weekday's events. */
+function MonthView({ events, conflictIds, issueFor }: { events: ScheduleEvent[]; conflictIds: Set<string>; issueFor: (id: string) => ReturnType<ReturnType<typeof useSchedule>['issueFor']> }) {
+  const today = new Date();
+  const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [picked, setPicked] = useState(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const cells = Array.from({ length: 42 }, (_, i) => new Date(month.getFullYear(), month.getMonth(), 1 - first.getDay() + i));
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  const dayEvents = (d: Date) => events.filter((e) => e.weekday === d.getDay());
+  const shift = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
+  const label = month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return (
+    <>
+      <View style={{ backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.md, gap: space.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Button kind="text" icon="chevron-back" label="" onPress={() => shift(-1)} />
+          <T v="cardTitle">{label}</T>
+          <Button kind="text" icon="chevron-forward" label="" onPress={() => shift(1)} />
+        </View>
+        <Button kind="tonal" label="Today" onPress={() => { setMonth(new Date(today.getFullYear(), today.getMonth(), 1)); setPicked(today); }} style={{ alignSelf: 'flex-end', minHeight: 36 }} />
+        <View style={{ flexDirection: 'row' }}>
+          {DAY_SHORT.map((d) => <T key={d} v="captionStrong" color={colors.textSecondary} center style={{ flex: 1 }}>{d[0]}</T>)}
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {cells.map((d) => {
+            const inMonth = d.getMonth() === month.getMonth();
+            const evs = dayEvents(d);
+            const on = same(d, picked);
+            const conflict = evs.some((e) => conflictIds.has(e.id));
+            return (
+              <Pressable key={d.toISOString()} onPress={() => setPicked(d)} accessibilityRole="button"
+                accessibilityLabel={`${d.toDateString()}, ${evs.length} events${conflict ? ', has a conflict' : ''}`}
+                style={{ width: `${100 / 7}%`, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: on ? colors.strawberryStrong : 'transparent' }}>
+                <T v={same(d, today) ? 'captionStrong' : 'caption'} color={on ? colors.onAccent : inMonth ? colors.text : colors.disabled}>{d.getDate()}</T>
+                <View style={{ flexDirection: 'row', gap: 2, height: 6, marginTop: 2 }}>
+                  {inMonth && evs.slice(0, 3).map((e) => <View key={e.id} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: on ? colors.onAccent : conflictIds.has(e.id) ? colors.error : colors.matcha }} />)}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={{ flexDirection: 'row', gap: space.md }}>
+          <T v="caption" color={colors.textSecondary}>● Has events</T>
+          <T v="caption" color={colors.error}>● Conflict</T>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <T v="cardTitle">{picked.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {dayEvents(picked).length} events</T>
+        <Button kind="text" icon="add" label="Add Event" onPress={() => router.push('/event/new')} />
+      </View>
+      {dayEvents(picked).map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)}
     </>
   );
 }

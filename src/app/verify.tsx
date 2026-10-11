@@ -60,7 +60,7 @@ export default function Verify() {
       newEvents.map((e) => ({ ...e, id: newId(), sourceFileId: fileId })));
     setDraft(null);
     router.dismissAll();
-    router.replace(issueCount ? '/review' : '/calendar');
+    router.replace({ pathname: '/import-success', params: { fileId, name: draft!.fileName, added: String(newEvents.length), issues: String(issueCount) } });
   }
 
   const tone = (i: number, k: keyof Row, conf: string) =>

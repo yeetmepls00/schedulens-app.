@@ -31,6 +31,11 @@ export default function Home() {
           <T v="caption" color={colors.textSecondary}>{hello},</T>
           <T v="screenTitle">{name || 'there'}</T>
         </View>
+        <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${todaysIssues.length ? `, ${todaysIssues.length} new` : ''}`}
+          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="notifications-outline" color={colors.text} />
+          {todaysIssues.length > 0 && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
+        </Pressable>
       </View>
 
       {todaysIssues.length > 0 && (

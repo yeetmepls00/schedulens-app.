@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import Storage from 'expo-sqlite/kv-store';
 import type { BusyBlock, ScheduleEvent } from './types';
 import { toBusyBlocks } from './freeTime';
+import { getSetting, setSetting } from '../data/db';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,6 +50,20 @@ export async function joinGroup(code: string, displayName: string, events: Sched
   await shareBusy(data.id, events);
   return { id: data.id, name: data.name, code: data.code, expiresAt: data.expires_at };
 }
+
+/** 4.3 Join Group: looks up an invite code before joining. Shows only name, size, and expiry. */
+export async function previewGroup(code: string, displayName: string) {
+  await ensureSignedIn(displayName);
+  const { data, error } = await sb().rpc('group_preview', { invite_code: code.trim().toUpperCase() });
+  if (error) throw error;
+  const row = (data as { name: string; member_count: number; expires_at: string }[] | null)?.[0];
+  if (!row) throw new Error('That code was not found.');
+  return { name: row.name, memberCount: Number(row.member_count), expiresAt: row.expires_at };
+}
+
+/** Saved list of groups you are in, kept on this phone. */
+export const savedGroups = (): Group[] => getSetting<Group[]>('groups', []);
+export const saveGroups = (g: Group[]) => setSetting('groups', g);
 
 /** Replaces my busy blocks in a group. Only day/start/end are sent. */
 export async function shareBusy(groupId: string, events: ScheduleEvent[]) {

@@ -82,3 +82,27 @@ begin
   delete from busy_blocks where group_id = gid and user_id = auth.uid();
   delete from group_members where group_id = gid and user_id = auth.uid();
 end $$;
+
+-- 4.3 Join Group: shows the group name, member count, and expiry for an invite
+-- code before the person decides to join. Reveals nothing about schedules.
+create or replace function group_preview(invite_code text)
+returns table (name text, member_count bigint, expires_at timestamptz)
+language sql security definer stable set search_path = public as $$
+  select g.name, (select count(*) from group_members m where m.group_id = g.id), g.expires_at
+  from groups g where g.code = upper(invite_code);
+$$;
+
+-- Only signed-in people (including anonymous sign-ins) may call these functions.
+revoke execute on function is_member(uuid), create_group(text, text), join_group(text, text),
+  replace_busy_blocks(uuid, jsonb), leave_group(uuid), group_preview(text) from public, anon;
+grant execute on function is_member(uuid), create_group(text, text), join_group(text, text),
+  replace_busy_blocks(uuid, jsonb), leave_group(uuid), group_preview(text) to authenticated;
+
+-- 4.6 Data & Privacy -> Delete account: removes your sign-in and, through
+-- "on delete cascade", every group membership and busy block you shared.
+create or replace function delete_my_account() returns void
+language sql security definer set search_path = public, auth as $$
+  delete from auth.users where id = auth.uid();
+$$;
+revoke execute on function delete_my_account() from public, anon;
+grant execute on function delete_my_account() to authenticated;
