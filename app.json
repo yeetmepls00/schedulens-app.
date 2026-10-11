@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "ScheduLens",
+    "slug": "schedulens",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.schedulens.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ScheduLens uses the camera to photograph your class schedule. The photo is read on your phone and is not uploaded.",
+        "NSPhotoLibraryUsageDescription": "ScheduLens lets you choose a schedule screenshot. It is read on your phone and is not uploaded."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FBD0D4",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.schedulens.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "ScheduLens uses the camera to photograph your class schedule. The photo is read on your phone and is not uploaded.",
+          "photosPermission": "ScheduLens lets you choose a schedule screenshot. It is read on your phone and is not uploaded."
+        }
+      ]
+    ],
+    "scheme": "schedulens",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1165d840-f8e2-4d9f-a02b-405e3a6f21b7"
+      }
+    }
+  }
+}
