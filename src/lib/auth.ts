@@ -61,11 +61,17 @@ export async function sendPasswordReset(email: string) {
   if (error) throw new Error(friendly(error.message));
 }
 
+let savedLink: { hash: string; search: string } | null = null;
+/** Keeps the reset link's details when it lands on another page first. */
+export function rememberResetLink(hash: string, search: string) { savedLink = { hash, search }; }
+
 /** Reads the one-time sign-in from the reset link (in the page address). */
 export async function openResetLink() {
   if (typeof window === 'undefined') throw new Error('Open the reset link from your email.');
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const query = new URLSearchParams(window.location.search);
+  const src = savedLink ?? { hash: window.location.hash, search: window.location.search };
+  savedLink = null;
+  const hash = new URLSearchParams(src.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(src.search);
   const err = hash.get('error_description') ?? query.get('error_description');
   if (err) throw new Error(/expired|invalid/i.test(err) ? 'This reset link has expired or was already used. Request a new one.' : err);
   const code = query.get('code');

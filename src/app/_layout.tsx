@@ -1,9 +1,18 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { dbReady } from '../data/db';
+import { rememberResetLink } from '../lib/auth';
+
+// Supabase may send a reset link to the site's home page instead of
+// /new-password (it falls back to the Site URL). Catch the recovery sign-in in
+// the address and open the New Password screen before anything else loads.
+const wantsReset = typeof window !== 'undefined' && !!window.location
+  && /type=recovery/.test(window.location.hash + window.location.search)
+  && window.location.pathname !== '/new-password';
+if (wantsReset) rememberResetLink(window.location.hash, window.location.search);
 
 export default function RootLayout() {
   const [isMounted, setIsMounted] = useState(false);
@@ -27,6 +36,10 @@ export default function RootLayout() {
       </View>
     );
   }
+
+  useEffect(() => {
+    if (isMounted && wantsReset) setTimeout(() => router.replace('/new-password'), 0);
+  }, [isMounted]);
 
   if (!isMounted) {
     return null;
