@@ -22,6 +22,7 @@ export default function Calendar() {
 
   return (
     <Screen title="Calendar" right={add}>
+      <Button kind="tonal" icon="color-palette" label="Timetable editor" onPress={() => router.push('/timetable')} />
       <Segmented value={view} onChange={setView} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
       {events.length === 0 ? (
         <Empty icon="calendar-outline" title="Your calendar is empty" message="Import a schedule or add an event." action="Add event" onAction={() => router.push('/event/new')} />

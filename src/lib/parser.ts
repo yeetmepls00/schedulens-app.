@@ -154,10 +154,15 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
       organizer = titled[0].replace(/\s+/g, ' ').trim();
       rest = rest.replace(titled[0], ' ');
     }
-    const title = cleanTitle(rest);
+    let title = cleanTitle(rest);
+    // A leading course code ("IT 311 Data Structures") is kept separately.
+    let courseCode: string | undefined;
+    const code = title.match(/^([A-Z]{2,5}\s?-?\d{1,4}[A-Z]?)\s+(.{3,})$/);
+    if (code) { courseCode = code[1]; title = code[2].trim(); }
 
     const base = {
       title: field(title.length ? title : undefined, title.length >= 3 ? 'high' : 'low'),
+      courseCode: field(courseCode, 'high'),
       startMin: field(range.start, range.sure ? 'high' : 'low'),
       endMin: field(range.end, range.sure ? 'high' : 'low'),
       location: field(location, 'high'),

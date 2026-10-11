@@ -6,6 +6,7 @@ import { findIssues } from '../conflicts';
 import { findFreeSlots, toBusyBlocks } from '../freeTime';
 import { buildIcs } from '../ics';
 import { checkScheduleFile } from '../fileCheck';
+import { applyPreset, commit, diffEvents, layoutDay, nudge, PRESETS, redo, startHistory, styleFromPreset, undo } from '../timetable';
 import type { ScheduleEvent } from '../types';
 
 test('reads common time formats', () => {
@@ -117,7 +118,8 @@ test('joins table cells that wrap onto two lines (PDF and OCR layouts)', () => {
   assert.equal(rows[0], 'HCI 2 Human Computer  Interaction  TTh  10:30 AM-12:00  PM');
   assert.equal(rows[1], 'GE 5');
   const [e] = parseScheduleText(rows[0]);
-  assert.equal(e.title.value, 'HCI 2 Human Computer Interaction');
+  assert.equal(e.title.value, 'Human Computer Interaction');
+  assert.equal(e.courseCode.value, 'HCI 2');
   assert.equal(e.startMin.value, 630);
   assert.equal(e.endMin.value, 720);
 });
@@ -126,7 +128,8 @@ test('ignores table borders and flags misread day codes for review', () => {
   const ev = parseScheduleText('IT 311 Data Structures | MWEF | 8:00-9:00 AM | Room 204 | Prof. Reyes');
   assert.deepEqual(ev.map((e) => e.weekday.value), [1, 3, 5]);
   assert.equal(ev[0].weekday.confidence, 'low');
-  assert.equal(ev[0].title.value, 'IT 311 Data Structures');
+  assert.equal(ev[0].title.value, 'Data Structures');
+  assert.equal(ev[0].courseCode.value, 'IT 311');
   assert.equal(ev[0].location.value, 'Room 204');
   assert.equal(ev[0].organizer.value, 'Prof. Reyes');
 });
@@ -139,4 +142,44 @@ test('checks schedule files before reading them', () => {
   assert.ok('error' in checkScheduleFile('IMG_1.HEIC', 'image/heic', 10));
   assert.ok('error' in checkScheduleFile('big.png', 'image/png', 11 * 1024 * 1024));
   assert.ok('error' in checkScheduleFile('empty.pdf', 'application/pdf', 0));
+});
+
+test('timetable presets change only the look, never the classes', () => {
+  const events: ScheduleEvent[] = [ev('A', 1, 480, 600), ev('B', 1, 540, 660)];
+  const before = JSON.stringify(events);
+  let style = styleFromPreset('pastel');
+  for (const p of PRESETS) style = applyPreset(style, p.id);
+  assert.equal(PRESETS.length >= 5, true);
+  assert.equal(new Set(PRESETS.map((p) => p.style.blockStyle)).size, PRESETS.length); // each preset draws blocks differently
+  assert.equal(JSON.stringify(events), before);
+  assert.equal(style.preset, PRESETS[PRESETS.length - 1].id);
+});
+
+test('places overlapping classes side by side', () => {
+  const placed = layoutDay([ev('A', 1, 480, 600), ev('B', 1, 540, 660), ev('C', 1, 700, 760)]);
+  const a = placed.find((p) => p.event.id === 'A')!, b = placed.find((p) => p.event.id === 'B')!, c = placed.find((p) => p.event.id === 'C')!;
+  assert.equal(a.columns, 2); assert.equal(b.columns, 2); assert.notEqual(a.column, b.column);
+  assert.equal(a.overlaps, true); assert.equal(c.overlaps, false); assert.equal(c.columns, 1);
+});
+
+test('editor undo, redo, and saving only what changed', () => {
+  const A = ev('A', 1, 480, 600), B = ev('B', 1, 700, 760);
+  let h = startHistory({ events: [A, B], style: styleFromPreset('pastel') });
+  h = commit(h, { ...h.present, events: [nudge(A, { startBy: 15 }), B] });
+  h = commit(h, { ...h.present, events: [h.present.events[0]] });
+  assert.equal(h.present.events.length, 1);
+  h = undo(h);
+  assert.equal(h.present.events.length, 2);
+  assert.equal(h.present.events[0].startMin, 495);
+  h = redo(h);
+  const d = diffEvents([A, B], h.present.events);
+  assert.deepEqual(d.deletedIds, ['B']);
+  assert.equal(d.changed[0].startMin, 495);
+  assert.equal(d.changed[0].endMin, 615);
+});
+
+test('nudging keeps a class inside the day and wraps the weekday', () => {
+  const e = nudge(ev('A', 1, 15, 75), { startBy: -30, dayBy: -2 });
+  assert.equal(e.startMin, 0); assert.equal(e.endMin, 60); assert.equal(e.weekday, 6);
+  assert.equal(nudge(ev('A', 1, 480, 495), { endBy: -15 }).endMin, 495);
 });

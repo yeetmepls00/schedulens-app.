@@ -1,6 +1,6 @@
-// Backup storage for browsers without SharedArrayBuffer (in-app browsers such
-// as Messenger and Facebook). It runs SQLite in the page itself and saves a
-// copy of the database to the browser's localStorage after every change.
+// Web storage: runs SQLite in the page itself (sql.js) and saves a copy of the
+// database to the browser's localStorage after every change. Works in every
+// browser, including Safari and in-app browsers such as Messenger.
 import initSqlJs from 'sql.js/dist/sql-wasm.js';
 
 const KEY = 'schedulens-db';
@@ -37,7 +37,7 @@ export async function openFallbackDb(schema: string) {
     return rows;
   };
 
-  return {
+  const db = {
     execSync(sql: string) { raw.exec(sql); persist(); },
     getAllSync(sql: string, ...args: unknown[]) { return all(sql, args); },
     getFirstSync(sql: string, ...args: unknown[]) { return all(sql, args)[0] ?? null; },
@@ -49,4 +49,5 @@ export async function openFallbackDb(schema: string) {
       persist();
     },
   };
+  return { db, restored: saved !== undefined };
 }

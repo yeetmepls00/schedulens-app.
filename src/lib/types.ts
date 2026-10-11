@@ -15,6 +15,10 @@ export interface ScheduleEvent {
   organizer?: string;
   /** Which uploaded file this came from, if any. */
   sourceFileId?: string;
+  /** Course code such as "IT 311", if known. */
+  courseCode?: string;
+  /** The student's own notes for this class. */
+  notes?: string;
 }
 
 /** How sure the OCR parser is about one extracted value. */
@@ -28,6 +32,7 @@ export interface ExtractedField<T> {
 /** One event as read from a document, before the user verifies it. */
 export interface ExtractedEvent {
   title: ExtractedField<string>;
+  courseCode: ExtractedField<string>;
   weekday: ExtractedField<Weekday>;
   startMin: ExtractedField<number>;
   endMin: ExtractedField<number>;

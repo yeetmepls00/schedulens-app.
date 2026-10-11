@@ -37,40 +37,52 @@ const SCHEMA = `
 // the app waits for `dbReady` before showing any screen (see app/_layout.tsx).
 let db: SQLite.SQLiteDatabase;
 
-// Some browsers cannot keep a saved database file (or take too long to
-// open one). Rather than leave a blank screen, fall back to a temporary
-// in-memory database for that visit.
+// On the web, the schedule is kept with SQLite running in the page (sql.js)
+// and saved to the browser's storage. expo-sqlite's web version is not used:
+// its synchronous reads corrupt any result longer than 255 bytes, and it needs
+// SharedArrayBuffer, which Safari-based and in-app browsers lack.
 async function openWeb() {
-  // The web database's quick (synchronous) reads need SharedArrayBuffer, which
-  // in-app browsers such as Messenger do not provide. Use the backup storage.
-  // Safari's engine (used by every iPhone browser) does not run the web
-  // database reliably either, so it uses the backup storage too.
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const safariEngine = /AppleWebKit/.test(ua) && !/Chrome\//.test(ua);
-  if (typeof SharedArrayBuffer === 'undefined' || safariEngine) {
-    const { openFallbackDb } = await import('./fallbackDb');
-    db = (await openFallbackDb(SCHEMA)) as unknown as SQLite.SQLiteDatabase;
-    return;
-  }
-  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+  const { openFallbackDb } = await import('./fallbackDb');
+  const { db: fb, restored } = await openFallbackDb(SCHEMA);
+  db = fb as unknown as SQLite.SQLiteDatabase;
+  if (!restored) await copyOldWebDatabase();
+}
+
+// Earlier web versions stored the schedule with expo-sqlite (in OPFS). Copy it
+// over once, using only its asynchronous calls, so nobody loses their data.
+async function copyOldWebDatabase() {
+  if (typeof SharedArrayBuffer === 'undefined') return;
   try {
-    const d = await Promise.race([SQLite.openDatabaseAsync('schedulens.db'), timeout]);
-    await d.execAsync(SCHEMA);
-    db = d;
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+    const old = await Promise.race([SQLite.openDatabaseAsync('schedulens.db'), timeout]);
+    for (const table of ['events', 'files', 'settings']) {
+      const rows = await old.getAllAsync<Record<string, unknown>>(`SELECT * FROM ${table}`).catch(() => []);
+      for (const r of rows) {
+        const cols = Object.keys(r);
+        db.runSync(`INSERT OR REPLACE INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, ...(cols.map((c) => r[c]) as SQLite.SQLiteBindValue[]));
+      }
+    }
+    await old.closeAsync();
   } catch (e) {
-    console.warn('Saved storage unavailable, using temporary storage', e);
-    const d = await SQLite.openDatabaseAsync(':memory:');
-    await d.execAsync(SCHEMA.replace('PRAGMA journal_mode = WAL;', ''));
-    db = d;
+    console.warn('No earlier web data to copy', e);
   }
+}
+
+// Columns added after the first release. Added in place so existing
+// schedules are kept (older databases simply get the new, empty columns).
+const NEW_COLUMNS = [['course_code', 'TEXT'], ['notes', 'TEXT']] as const;
+function migrate() {
+  const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(events)').map((c) => c.name);
+  for (const [name, kind] of NEW_COLUMNS) if (!cols.includes(name)) db.execSync(`ALTER TABLE events ADD COLUMN ${name} ${kind}`);
 }
 export const dbReady: Promise<void> =
   Platform.OS === 'web'
-    ? openWeb()
+    ? openWeb().then(migrate)
     : Promise.resolve();
 if (Platform.OS !== 'web') {
   db = SQLite.openDatabaseSync('schedulens.db');
   db.execSync(SCHEMA);
+  migrate();
 }
 
 export interface SavedFile {
@@ -85,6 +97,7 @@ export interface SavedFile {
 type EventRow = {
   id: string; title: string; weekday: number; start_min: number; end_min: number;
   location: string | null; organizer: string | null; source_file_id: string | null;
+  course_code?: string | null; notes?: string | null;
 };
 
 const fromRow = (r: EventRow): ScheduleEvent => ({
@@ -96,6 +109,8 @@ const fromRow = (r: EventRow): ScheduleEvent => ({
   location: r.location ?? undefined,
   organizer: r.organizer ?? undefined,
   sourceFileId: r.source_file_id ?? undefined,
+  courseCode: r.course_code ?? undefined,
+  notes: r.notes ?? undefined,
 });
 
 export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -128,6 +143,12 @@ export const useEvents = () => useSyncExternalStore(subscribe, () => snapshot().
 export const useFiles = () => useSyncExternalStore(subscribe, () => snapshot().files);
 
 // --- Events ------------------------------------------------------------------
+const INSERT_EVENT = `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id, course_code, notes)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+const eventValues = (e: ScheduleEvent) => [
+  e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, e.sourceFileId ?? null, e.courseCode ?? null, e.notes ?? null,
+] as const;
+
 export function getEvent(id: string): ScheduleEvent | undefined {
   const r = db.getFirstSync<EventRow>('SELECT * FROM events WHERE id = ?', id);
   return r ? fromRow(r) : undefined;
@@ -135,10 +156,20 @@ export function getEvent(id: string): ScheduleEvent | undefined {
 
 export function saveEvent(e: ScheduleEvent) {
   db.runSync(
-    `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, e.sourceFileId ?? null,
+    INSERT_EVENT, ...eventValues(e),
   );
+  changed();
+}
+
+/**
+ * Saves the timetable editor's changes in one transaction: every event in
+ * `events` is written, and only the ids in `deletedIds` are removed.
+ */
+export function saveEditorChanges(events: ScheduleEvent[], deletedIds: string[]) {
+  db.withTransactionSync(() => {
+    for (const id of deletedIds) db.runSync('DELETE FROM events WHERE id = ?', id);
+    for (const e of events) db.runSync(INSERT_EVENT, ...eventValues(e));
+  });
   changed();
 }
 
@@ -155,11 +186,7 @@ export function saveImport(file: Omit<SavedFile, 'eventCount' | 'createdAt'>, ev
       file.id, file.name, file.uri, file.kind, new Date().toISOString(), events.length,
     );
     for (const e of events) {
-      db.runSync(
-        `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, file.id,
-      );
+      db.runSync(INSERT_EVENT, ...eventValues({ ...e, sourceFileId: file.id }));
     }
   });
   changed();

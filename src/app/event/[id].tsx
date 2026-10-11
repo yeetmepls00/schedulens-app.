@@ -21,6 +21,8 @@ export default function EventForm() {
   const [end, setEnd] = useState(old ? formatTime(old.endMin) : '');
   const [location, setLocation] = useState(old?.location ?? '');
   const [organizer, setOrganizer] = useState(old?.organizer ?? '');
+  const [courseCode, setCourseCode] = useState(old?.courseCode ?? '');
+  const [notes, setNotes] = useState(old?.notes ?? '');
   const [tried, setTried] = useState(false);
 
   const s = parseTime(start)?.minutes, e = parseTime(end)?.minutes;
@@ -33,7 +35,7 @@ export default function EventForm() {
   const valid = Object.keys(errors).length === 0;
   const eventId = old?.id ?? 'pending';
 
-  const candidate = valid ? { id: eventId, title: title.trim(), weekday: weekday!, startMin: s!, endMin: e!, location: location.trim() || undefined, organizer: organizer.trim() || undefined, sourceFileId: old?.sourceFileId } : undefined;
+  const candidate = valid ? { id: eventId, title: title.trim(), weekday: weekday!, startMin: s!, endMin: e!, location: location.trim() || undefined, organizer: organizer.trim() || undefined, sourceFileId: old?.sourceFileId, courseCode: courseCode.trim() || undefined, notes: notes.trim() || undefined } : undefined;
   const live = candidate ? findIssues([...all.filter((x) => x.id !== eventId), candidate], getRules()).filter((i) => i.eventIds.includes(eventId)) : [];
 
   function save() {
@@ -53,6 +55,7 @@ export default function EventForm() {
     <Screen title={isNew ? 'New event' : 'Edit event'} back footer={<Button label="Save" onPress={save} />}>
       {!isNew && !old && <Banner tone="error" title="Event not found" message="It may have been deleted." />}
       <Field label="Title" value={title} onChangeText={setTitle} error={err('title')} placeholder="e.g. Data Structures" />
+      <Field label="Course code (optional)" value={courseCode} onChangeText={setCourseCode} placeholder="e.g. IT 311" />
       <View style={{ gap: 6 }}>
         <T v="label">Day</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -66,6 +69,7 @@ export default function EventForm() {
       </View>
       <Field label="Room (optional)" value={location} onChangeText={setLocation} />
       <Field label="Instructor (optional)" value={organizer} onChangeText={setOrganizer} />
+      <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="e.g. Bring laptop" />
       {live.map((i, n) => <Banner key={n} tone={i.kind === 'overlap' ? 'error' : 'warning'} title={i.kind === 'overlap' ? 'Overlaps another event' : i.kind === 'travel' ? 'Short travel time' : 'Long stretch without a break'} message={i.message} />)}
       {old && <Button kind="text" label="Delete event" icon="trash" onPress={remove} />}
     </Screen>

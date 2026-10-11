@@ -11,7 +11,7 @@ import { DAY_SHORT, formatTime, parseTime } from '../lib/time';
 import type { ExtractedEvent, ScheduleEvent, Weekday } from '../lib/types';
 import { colors, space } from '../theme/tokens';
 
-interface Row { title: string; weekday?: Weekday; start: string; end: string; location: string; organizer: string; src: ExtractedEvent; keep: boolean; duplicate: boolean }
+interface Row { title: string; code: string; weekday?: Weekday; start: string; end: string; location: string; organizer: string; src: ExtractedEvent; keep: boolean; duplicate: boolean }
 
 // The same class (title, day and times) already in the calendar, for example
 // after importing the same schedule twice.
@@ -21,7 +21,7 @@ const sameClass = (a: { title: string; weekday?: number; startMin?: number; endM
 const toRow = (existing: ScheduleEvent[]) => (e: ExtractedEvent): Row => {
   const duplicate = existing.some((x) => sameClass({ title: e.title.value ?? '', weekday: e.weekday.value, startMin: e.startMin.value, endMin: e.endMin.value }, x));
   return {
-  title: e.title.value ?? '', weekday: e.weekday.value,
+  title: e.title.value ?? '', code: e.courseCode?.value ?? '', weekday: e.weekday.value,
   start: e.startMin.value !== undefined ? formatTime(e.startMin.value) : '',
   end: e.endMin.value !== undefined ? formatTime(e.endMin.value) : '',
   location: e.location.value ?? '', organizer: e.organizer.value ?? '', src: e, keep: !duplicate, duplicate,
@@ -56,7 +56,7 @@ export default function Verify() {
   const newEvents: ScheduleEvent[] = useMemo(() => rows.flatMap((r, i) => {
     const c = checked[i];
     if (!r.keep || Object.keys(c.errors).length) return [];
-    return [{ id: `draft-${i}`, title: r.title.trim(), weekday: r.weekday!, startMin: c.s!, endMin: c.e!, location: r.location.trim() || undefined, organizer: r.organizer.trim() || undefined }];
+    return [{ id: `draft-${i}`, title: r.title.trim(), courseCode: r.code.trim() || undefined, weekday: r.weekday!, startMin: c.s!, endMin: c.e!, location: r.location.trim() || undefined, organizer: r.organizer.trim() || undefined }];
   }), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const issueCount = findIssues([...existing, ...newEvents], getRules()).filter((x) => x.eventIds.some((id) => id.startsWith('draft-'))).length;
 
@@ -93,6 +93,7 @@ export default function Verify() {
             <T v="caption" color={colors.textSecondary}>Read as: “{r.src.sourceText}”</T>
             {r.keep && <>
               <Field label="Title" value={r.title} onChangeText={(v) => set(i, 'title', v)} error={errors.title} tone={tone(i, 'title', r.src.title.confidence)} />
+              <Field label="Course code (optional)" value={r.code} onChangeText={(v) => set(i, 'code', v)} placeholder="e.g. IT 311" />
               <View style={{ gap: 6 }}>
                 <T v="label">Day</T>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

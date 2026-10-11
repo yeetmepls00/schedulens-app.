@@ -20,26 +20,26 @@ export default function RootLayout() {
 
   // Wait until local storage is open before showing any screen.
   useEffect(() => {
-    dbReady.then(() => setIsMounted(true), () => setFailed(true));
+    dbReady.then(() => setIsMounted(true), (e) => { console.error('Storage failed to open', e); setFailed(true); });
   }, []);
 
-  // Some in-app browsers (Messenger, Facebook, Instagram) block the storage the
-  // web version needs. Say so instead of showing a blank page.
+  useEffect(() => {
+    if (isMounted && wantsReset) setTimeout(() => router.replace('/new-password'), 0);
+  }, [isMounted]);
+
+  // If storage can't open (very old or locked-down browsers), say so instead
+  // of showing a blank page.
   if (failed) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
         <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>Open ScheduLens in your browser</Text>
         <Text style={{ fontSize: 15, color: '#555', textAlign: 'center' }}>
-          This browser can't store your schedule. Open the link in Chrome or Safari instead
-          (tap ⋮ or the share icon, then "Open in browser").
+          This browser can't store your schedule. Open the link in Chrome, Safari, Edge, or Firefox.
+          If you are inside another app, tap ⋮ or the share icon, then "Open in browser".
         </Text>
       </View>
     );
   }
-
-  useEffect(() => {
-    if (isMounted && wantsReset) setTimeout(() => router.replace('/new-password'), 0);
-  }, [isMounted]);
 
   if (!isMounted) {
     return null;
