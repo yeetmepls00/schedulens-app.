@@ -4,7 +4,7 @@ import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '../../components/ui';
-import { isSignedIn } from '../../lib/auth';
+import { useSignedIn } from '../../lib/auth';
 import { colors, type } from '../../theme/tokens';
 
 const TABS: { name: string; label: string; icon: IconName; iconOn: IconName }[] = [
@@ -46,8 +46,8 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
-  // Not signed in yet: first launch starts on 1.1 Welcome, later launches on 1.2 Log In.
-  if (!isSignedIn()) return <Redirect href="/welcome" />;
+  // Not signed in with a confirmed email yet: start on 1.1 Welcome.
+  if (!useSignedIn()) return <Redirect href="/welcome" />;
   return (
     <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false }}>
       {TABS.map((t) => <Tabs.Screen key={t.name} name={t.name} />)}

@@ -26,12 +26,13 @@ export function sb(): SupabaseClient {
   return client;
 }
 
-async function ensureSignedIn(displayName: string) {
+// Groups need an account with a confirmed email. The database checks this
+// too (is_verified in supabase/schema.sql), so it can't be skipped.
+async function ensureSignedIn(_displayName: string) {
   const { data } = await sb().auth.getSession();
-  if (data.session) return data.session.user.id;
-  const res = await sb().auth.signInAnonymously({ options: { data: { username: displayName } } });
-  if (res.error) throw res.error;
-  return res.data.user!.id;
+  const user = data.session?.user;
+  if (!user || user.is_anonymous || !user.email_confirmed_at) throw new Error('Log in with a confirmed email to use groups.');
+  return user.id;
 }
 
 export interface Group { id: string; name: string; code: string; expiresAt: string }

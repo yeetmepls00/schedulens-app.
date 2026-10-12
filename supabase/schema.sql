@@ -32,9 +32,16 @@ alter table group_members enable row level security;
 alter table busy_blocks enable row level security;
 
 -- Helper: is the signed-in user in this group?
+-- Only accounts with a confirmed email (not anonymous) may use groups.
+create or replace function is_verified() returns boolean
+language sql security definer stable set search_path = public, auth as $$
+  select exists (select 1 from auth.users where id = auth.uid()
+    and email_confirmed_at is not null and coalesce(is_anonymous, false) = false);
+$$;
+
 create or replace function is_member(gid uuid) returns boolean
 language sql security definer stable set search_path = public as $$
-  select exists (select 1 from group_members where group_id = gid and user_id = auth.uid());
+  select is_verified() and exists (select 1 from group_members where group_id = gid and user_id = auth.uid());
 $$;
 
 create policy "members read their groups" on groups for select using (is_member(id));
@@ -46,6 +53,7 @@ create or replace function create_group(group_name text, member_name text) retur
 language plpgsql security definer set search_path = public as $$
 declare g groups;
 begin
+  if not is_verified() then raise exception 'email not confirmed'; end if;
   insert into groups (name, code, owner)
   values (group_name, upper(substr(md5(random()::text), 1, 6)), auth.uid())
   returning * into g;
@@ -57,6 +65,7 @@ create or replace function join_group(invite_code text, member_name text) return
 language plpgsql security definer set search_path = public as $$
 declare g groups;
 begin
+  if not is_verified() then raise exception 'email not confirmed'; end if;
   select * into g from groups where code = invite_code;
   if g.id is null then raise exception 'not found'; end if;
   if g.expires_at < now() then raise exception 'expired'; end if;
@@ -89,10 +98,12 @@ create or replace function group_preview(invite_code text)
 returns table (name text, member_count bigint, expires_at timestamptz)
 language sql security definer stable set search_path = public as $$
   select g.name, (select count(*) from group_members m where m.group_id = g.id), g.expires_at
-  from groups g where g.code = upper(invite_code);
+  from groups g where g.code = upper(invite_code) and is_verified();
 $$;
 
--- Only signed-in people (including anonymous sign-ins) may call these functions.
+-- Only signed-in people may call these functions.
+revoke execute on function is_verified() from public, anon;
+grant execute on function is_verified() to authenticated;
 revoke execute on function is_member(uuid), create_group(text, text), join_group(text, text),
   replace_busy_blocks(uuid, jsonb), leave_group(uuid), group_preview(text) from public, anon;
 grant execute on function is_member(uuid), create_group(text, text), join_group(text, text),

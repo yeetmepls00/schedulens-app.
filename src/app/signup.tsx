@@ -30,8 +30,8 @@ export default function SignUp() {
     if (!ok) return;
     setBusy(true);
     try {
-      const needsConfirm = await signUp(name, email, password);
-      router.push({ pathname: '/terms', params: needsConfirm ? { confirm: '1' } : {} });
+      await signUp(name, email, password);
+      router.push('/terms');
     } catch (e) { setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.'); }
     finally { setBusy(false); }
   }

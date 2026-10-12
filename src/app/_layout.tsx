@@ -1,10 +1,10 @@
-import { router, Stack } from 'expo-router';
+import { Redirect, router, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { dbReady } from '../data/db';
-import { rememberResetLink } from '../lib/auth';
+import { isPublicPath, loadAuth, rememberNext, rememberResetLink, useSignedIn } from '../lib/auth';
 
 // Supabase may send a reset link to the site's home page instead of
 // /new-password (it falls back to the Site URL). Catch the recovery sign-in in
@@ -20,7 +20,7 @@ export default function RootLayout() {
 
   // Wait until local storage is open before showing any screen.
   useEffect(() => {
-    dbReady.then(() => setIsMounted(true), (e) => { console.error('Storage failed to open', e); setFailed(true); });
+    dbReady.then(loadAuth).then(() => setIsMounted(true), (e) => { console.error('Storage failed to open', e); setFailed(true); });
   }, []);
 
   useEffect(() => {
@@ -49,8 +49,21 @@ export default function RootLayout() {
     <SafeAreaProvider style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }} />
+      <Guard />
     </SafeAreaProvider>
   );
+}
+
+// Every page except Welcome, Log In, Sign Up, Terms, password reset, Help, and
+// the confirmation page needs a signed-in account with a confirmed email.
+// The page asked for is remembered and opened after signing in.
+function Guard() {
+  const path = usePathname();
+  const signedIn = useSignedIn();
+  if (signedIn || isPublicPath(path) || wantsReset) return null;
+  const full = typeof window !== 'undefined' && window.location ? window.location.pathname + window.location.search : path;
+  rememberNext(full);
+  return <Redirect href="/welcome" />;
 }
 // If a screen crashes, show what went wrong instead of a blank page, so the
 // problem can be reported and fixed.

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Banner, Button, Field, Screen, T } from '../components/ui';
-import { authConfigured, logIn, validEmail } from '../lib/auth';
+import { authConfigured, logIn, takeNext, validEmail } from '../lib/auth';
 import { colors, space } from '../theme/tokens';
 
 export default function LogIn() {
@@ -20,7 +20,7 @@ export default function LogIn() {
     setTried(true); setError(null);
     if (!validEmail(email) || !password) return;
     setBusy(true);
-    try { await logIn(email, password); router.replace('/'); }
+    try { const done = await logIn(email, password); router.replace((done ? takeNext() : '/terms') as never); }
     catch (e) { setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.'); }
     finally { setBusy(false); }
   }

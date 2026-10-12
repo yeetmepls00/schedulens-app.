@@ -13,7 +13,7 @@ const SECTIONS: Section[] = [
   { id: 'account', title: '1. Create an account and sign in', steps: [
     'On the Welcome screen, tap Get Started.',
     'Enter a username, your email, and a password with at least 8 characters including a number. Tick the Terms box and tap Sign Up.',
-    'Open the email from ScheduLens and tap the confirmation link. Then come back and log in.',
+    'Open the email from ScheduLens and tap the confirmation link. The app stays locked until you do; the Terms page then continues by itself.',
     'Next time, tap I already have an account and log in with your email and password.',
     'Forgot your password? On Log In, tap Forgot password?, enter your email, and tap Send reset link. The link in the email opens Choose a new password. Enter it twice and tap Save new password, then log in.',
   ] },
