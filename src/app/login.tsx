@@ -2,7 +2,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Banner, Button, Field, Screen, T } from '../components/ui';
+import { AuthShell } from '../components/brand';
+import { Banner, Button, Field, T } from '../components/ui';
 import { authConfigured, logIn, takeNext, validEmail } from '../lib/auth';
 import { colors, space } from '../theme/tokens';
 
@@ -25,9 +26,15 @@ export default function LogIn() {
     finally { setBusy(false); }
   }
   return (
-    <Screen title={router.canGoBack() ? '' : undefined} back>
-      <T v="welcome">Welcome Back!</T>
-      <T color={colors.textSecondary}>Sign in to ScheduLens</T>
+    <AuthShell title="Welcome back" subtitle="Log in to see your timetable." back={router.canGoBack()}
+      below={(
+        <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center', justifyContent: 'center' }}>
+          <T color={colors.textSecondary}>New to ScheduLens?</T>
+          <Pressable onPress={() => router.push('/signup')} accessibilityRole="link" hitSlop={12}>
+            <T v="label" color={colors.strawberryStrong}>Create an account</T>
+          </Pressable>
+        </View>
+      )}>
       {!authConfigured && <Banner tone="warning" title="Sign-in is not set up" message="Add the Supabase URL and key to the app settings, then reload." />}
       {error && <Banner tone="error" title="Couldn’t sign you in" message={error} />}
       <Field label="Email" value={email} onChangeText={setEmail} error={emailErr} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
@@ -36,12 +43,6 @@ export default function LogIn() {
         <T v="captionStrong" color={colors.strawberryStrong}>Forgot password?</T>
       </Pressable>
       <Button label="Log In" onPress={submit} loading={busy} disabled={!authConfigured} />
-      <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-        <T color={colors.textSecondary}>New to ScheduLens?</T>
-        <Pressable onPress={() => router.push('/signup')} accessibilityRole="link" hitSlop={12}>
-          <T v="label" color={colors.strawberryStrong}>Create an account</T>
-        </Pressable>
-      </View>
-    </Screen>
+    </AuthShell>
   );
 }

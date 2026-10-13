@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import type { ComponentProps, ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, space, TOUCH, type } from '../theme/tokens';
@@ -13,15 +13,17 @@ export const Icon = ({ name, size = 22, color = colors.text }: { name: IconName;
 );
 
 /** Full screen with the strawberry matcha gradient, a header, and scrolling content. */
-export function Screen({ title, back, right, children, footer, scroll = true }: {
+export function Screen({ title, back, right, children, footer, scroll = true, plain }: {
   title?: string; back?: boolean; right?: ReactNode; children: ReactNode; footer?: ReactNode; scroll?: boolean;
+  /** Transparent header bar (onboarding and sign-in screens). */
+  plain?: boolean;
 }) {
   const body = <View style={{ padding: space.xl, gap: space.lg, paddingBottom: 120 }}>{children}</View>;
   return (
     <LinearGradient colors={[colors.gradientTop, colors.gradientMid, colors.gradientBottom]} locations={[0, 0.45, 1]} style={{ flex: 1 }}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {title !== undefined && (
-          <View style={s.header}>
+          <View style={[s.header, plain && { backgroundColor: 'transparent' }]}>
             <View style={s.headerSide}>
               {back && (
                 <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.iconBtn}>
@@ -116,6 +118,8 @@ export function Banner({ tone, title, message, action, onAction }: {
 export function Field({ label, error, helper, tone, ...input }: TextInputProps & {
   label: string; error?: string; helper?: string; tone?: 'low' | 'missing' | 'edited';
 }) {
+  const [hidden, setHidden] = useState(true);
+  const secret = !!input.secureTextEntry;
   const border = error || tone === 'missing' ? colors.error : tone === 'low' ? colors.warning : tone === 'edited' ? colors.strawberry : colors.border;
   const bg = tone === 'low' ? colors.warningSurface : tone === 'missing' ? colors.errorSurface : colors.white;
   const note = error ?? (tone === 'low' ? 'Check this: low confidence' : tone === 'missing' ? 'Not found. Please fill in.' : tone === 'edited' ? 'Edited' : helper);
@@ -123,12 +127,21 @@ export function Field({ label, error, helper, tone, ...input }: TextInputProps &
   return (
     <View style={{ gap: 6, flex: input.style ? undefined : 1 }}>
       <Text style={[type.label, { color: colors.text }]}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={colors.textSecondary}
-        {...input}
-        style={[s.input, { borderColor: border, borderWidth: error || tone ? 2 : 1, backgroundColor: bg }]}
-      />
+      <View>
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor={colors.textSecondary}
+          {...input}
+          secureTextEntry={secret && hidden}
+          style={[s.input, { borderColor: border, borderWidth: error || tone ? 2 : 1, backgroundColor: bg }, secret && { paddingRight: 48 }]}
+        />
+        {secret && (
+          <Pressable onPress={() => setHidden(!hidden)} accessibilityRole="button" accessibilityLabel={hidden ? `Show ${label.toLowerCase()}` : `Hide ${label.toLowerCase()}`}
+            style={{ position: 'absolute', right: 4, top: 0, bottom: 0, width: 44, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textSecondary} />
+          </Pressable>
+        )}
+      </View>
       {note ? <Text style={[type.caption, { color: noteColor }]}>{note}</Text> : null}
     </View>
   );

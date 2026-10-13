@@ -2,14 +2,15 @@
 // tried to open). Continue turns on only after the email is confirmed and the box is ticked.
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { Banner, Button, Card, Checkbox, Icon, Screen, T, type IconName } from '../components/ui';
-import { acceptTermsAndFinish, checkConfirmed, hasPendingSignUp, resendConfirmation, takeNext, useVerified } from '../lib/auth';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { AuthShell } from '../components/brand';
+import { Button, Checkbox, Icon, T, type IconName } from '../components/ui';
+import { acceptTermsAndFinish, checkConfirmed, hasPendingSignUp, pendingEmail, resendConfirmation, takeNext, useVerified } from '../lib/auth';
 import { colors, space } from '../theme/tokens';
 
 const ITEMS: [IconName, string, string][] = [
   ['calendar-outline', 'Schedule Information', 'How we collect and use your schedule data'],
-  ['sync-outline', 'Calendar Synchronization', 'How we connect with your calendar accounts'],
+  ['download-outline', 'Calendar Export', 'Your timetable leaves ScheduLens only as a file you export'],
   ['people-outline', 'Group Sharing', 'Only free and busy times are shared'],
   ['shield-checkmark-outline', 'Privacy', 'How we protect your information'],
   ['warning-outline', 'Limitation of Liability', 'How we handle service availability'],
@@ -55,31 +56,47 @@ export default function Terms() {
     catch (e) { setNote(e instanceof Error ? e.message : String(e)); }
   }
   return (
-    <Screen title="Terms and Conditions" back>
+    <AuthShell title={verified ? 'One last step' : 'Check your inbox'}
+      subtitle={verified ? 'Your email is confirmed. Review the Terms to finish.' : undefined} steps={verified ? 2 : 1}>
       {!verified && (
-        <Banner tone="warning" title="Confirm your email to continue"
-          message={hasPendingSignUp()
-            ? 'We sent you a link. Open it, and this page continues by itself. Continue stays off until your email is confirmed.'
-            : 'Open the link in the email we sent you, then log in.'} />
+        <View style={{ alignItems: 'center', gap: space.md }}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.header, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="mail-unread-outline" size={30} color={colors.strawberryStrong} />
+          </View>
+          <T center>
+            {hasPendingSignUp()
+              ? <>We sent a confirmation link to <T v="label">{pendingEmail()}</T>. Open it to continue. This page moves on by itself.</>
+              : 'Open the confirmation link in the email we sent you, then log in.'}
+          </T>
+          {hasPendingSignUp() ? (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <ActivityIndicator size="small" color={colors.strawberryStrong} />
+                <T v="caption" color={colors.textSecondary}>Waiting for confirmation…</T>
+              </View>
+              <View style={{ flexDirection: 'row', gap: space.lg }}>
+                <Pressable onPress={resend} accessibilityRole="button" hitSlop={12}>
+                  <T v="captionStrong" color={colors.strawberryStrong}>Resend email</T>
+                </Pressable>
+                <Pressable onPress={() => router.replace('/signup')} accessibilityRole="button" hitSlop={12}>
+                  <T v="captionStrong" color={colors.strawberryStrong}>Use a different email</T>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Button kind="secondary" label="Go to Log In" onPress={() => router.replace('/login')} />
+          )}
+          {note && <T v="caption" center color={colors.textSecondary}>{note}</T>}
+          <View style={{ height: 1, alignSelf: 'stretch', backgroundColor: colors.border }} />
+        </View>
       )}
-      {!verified && hasPendingSignUp() && (
-        <Pressable onPress={resend} accessibilityRole="button" hitSlop={12} style={{ alignSelf: 'flex-start' }}>
-          <T v="captionStrong" color={colors.strawberryStrong}>Resend confirmation email</T>
-        </Pressable>
-      )}
-      {!verified && !hasPendingSignUp() && (
-        <Pressable onPress={() => router.replace('/login')} accessibilityRole="button" hitSlop={12} style={{ alignSelf: 'flex-start' }}>
-          <T v="captionStrong" color={colors.strawberryStrong}>Go to Log In</T>
-        </Pressable>
-      )}
-      {verified && <Banner tone="matcha" title="Email confirmed" message="Thanks! Tick the box and tap Continue." />}
-      {note && <T v="caption" color={colors.textSecondary}>{note}</T>}
-      <T color={colors.textSecondary}>Please review how ScheduLens handles your schedule before you continue.</T>
-      <Card style={{ gap: space.md }}>
+      {verified && note && <T v="caption" color={colors.textSecondary}>{note}</T>}
+      <T v="cardTitle">Terms and Conditions</T>
+      <View style={{ gap: space.md }}>
         {ITEMS.map(([icon, title, sub]) => (
           <View key={title} style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.header, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={icon} size={20} color={colors.strawberry} />
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.header, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={icon} size={18} color={colors.strawberry} />
             </View>
             <View style={{ flex: 1 }}>
               <T v="label">{title}</T>
@@ -87,12 +104,12 @@ export default function Terms() {
             </View>
           </View>
         ))}
-      </Card>
+      </View>
       <Checkbox label="I have read and agree to the Terms" on={agree} onPress={() => setAgree(!agree)} />
       <Button label="Continue" onPress={finish} disabled={!agree || !verified} />
       {(!agree || !verified) && <T v="caption" color={colors.textSecondary}>
         {!verified ? 'Continue turns on after you confirm your email and tick the box.' : 'Continue turns on after you tick the box.'}
       </T>}
-    </Screen>
+    </AuthShell>
   );
 }

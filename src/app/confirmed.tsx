@@ -2,7 +2,8 @@
 // either lets the ScheduLens tab that was waiting carry on, or continues here.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Banner, Button, Screen, T } from '../components/ui';
+import { AuthShell } from '../components/brand';
+import { Banner, Button, T } from '../components/ui';
 import { getSetting } from '../data/db';
 import { openConfirmLink, rememberNext } from '../lib/auth';
 import { colors } from '../theme/tokens';
@@ -30,7 +31,7 @@ export default function Confirmed() {
   }, [next]);
 
   return (
-    <Screen title="Confirm your email">
+    <AuthShell title="Confirming your email" back={false} steps={1}>
       {state === 'checking' && <T color={colors.textSecondary}>Confirming your email…</T>}
       {state === 'otherTab' && (
         <>
@@ -44,6 +45,6 @@ export default function Confirmed() {
           <Button label="Go to Log In" onPress={() => router.replace('/login')} />
         </>
       )}
-    </Screen>
+    </AuthShell>
   );
 }

@@ -2,7 +2,8 @@
 // sign-in that lets the person choose a new password.
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Banner, Button, Field, Screen, T } from '../components/ui';
+import { AuthShell } from '../components/brand';
+import { Banner, Button, Field, T } from '../components/ui';
 import { finishPasswordReset, openResetLink } from '../lib/auth';
 import { colors } from '../theme/tokens';
 
@@ -30,8 +31,7 @@ export default function NewPassword() {
   }
 
   return (
-    <Screen title="">
-      <T v="welcome">Choose a new password</T>
+    <AuthShell title="Choose a new password" subtitle="Use at least 8 characters, including a number." back={false}>
       {ready === 'checking' && <T color={colors.textSecondary}>Checking your reset link…</T>}
       {ready !== 'checking' && ready !== 'ok' && (
         <>
@@ -53,6 +53,6 @@ export default function NewPassword() {
           <Button label="Go to Log In" onPress={() => router.replace('/login')} />
         </>
       )}
-    </Screen>
+    </AuthShell>
   );
 }

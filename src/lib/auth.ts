@@ -95,6 +95,7 @@ const webLink = (path: string) =>
 // confirmed and sign in by itself.
 let pending: { email: string; password: string } | null = null;
 export const hasPendingSignUp = () => !!pending;
+export const pendingEmail = () => pending?.email ?? '';
 
 /** Creates the account. Returns true when the email still needs confirming. */
 export async function signUp(fullName: string, email: string, password: string): Promise<boolean> {
