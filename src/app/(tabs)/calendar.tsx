@@ -44,8 +44,9 @@ export default function Calendar() {
     </Pressable>
   ) : <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />;
   const add = !selecting ? <Button label="Add" kind="text" icon="add" onPress={() => router.push('/event/new')} /> : null;
-  const select = events.length > 0 && canSelect
-    ? <Button label={selecting ? 'Done' : 'Select'} kind="text" onPress={() => (selecting ? stop() : setSelecting(true))} /> : null;
+  // Week and Heatmap can't show checkboxes, so Select opens the List view.
+  const select = events.length > 0
+    ? <Button label={selecting ? 'Done' : 'Select'} kind="text" onPress={() => { if (selecting) return stop(); if (!canSelect) setView('list'); setSelecting(true); }} /> : null;
 
   return (
     <Screen title="Calendar" left={select} right={add} footer={selecting ? (
