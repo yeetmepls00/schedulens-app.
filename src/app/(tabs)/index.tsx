@@ -1,4 +1,6 @@
 // Home: today's events, warnings, and shortcuts.
+import { Avatar } from '../../components/avatar';
+import { InstallApp } from '../../components/install-app';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
@@ -24,13 +26,17 @@ export default function Home() {
     <Screen>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
         <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="Profile and settings"
-          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, borderWidth: 2, borderColor: colors.strawberry, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="person" color={colors.strawberryStrong} />
+>
+          <Avatar name={name} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <T v="caption" color={colors.textSecondary}>{hello},</T>
           <T v="screenTitle">{name || 'there'}</T>
         </View>
+        <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="Settings"
+          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="settings-outline" color={colors.text} />
+        </Pressable>
         <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${todaysIssues.length ? `, ${todaysIssues.length} new` : ''}`}
           style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="notifications-outline" color={colors.text} />
@@ -59,7 +65,7 @@ export default function Home() {
 
       <T v="section">Quick access</T>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-        {([['Scan schedule', 'Camera or file', 'camera', '/scan'], ['Calendar', 'Day to heatmap', 'calendar', '/calendar'], ['Groups', 'Find free time', 'people', '/groups'], ['Vault', 'Saved schedules', 'folder', '/vault']] as const).map(([label, sub, icon, href]) => (
+        {([['Scan schedule', 'Camera or file', 'camera', '/scan'], ['Calendar', 'Day to heatmap', 'calendar', '/calendar'], ['Groups', 'Find free time', 'people', '/groups'], ['Vault', 'Saved schedules', 'folder', '/vault'], ['Schedule check', 'Overlaps and gaps', 'checkmark-done', '/review'], ['Settings', 'Profile and app', 'settings-outline', '/settings']] as const).map(([label, sub, icon, href]) => (
           <Pressable key={label} onPress={() => router.push(href)} accessibilityRole="button"
             style={{ width: '47%', flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, minHeight: 64 }}>
             <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.matchaSoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -72,6 +78,7 @@ export default function Home() {
           </Pressable>
         ))}
       </View>
+      <InstallApp hideWhenInstalled />
     </Screen>
   );
 }

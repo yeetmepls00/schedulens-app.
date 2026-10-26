@@ -37,7 +37,7 @@ export function Screen({ title, back, right, children, footer, scroll = true, pl
           </View>
         )}
         {scroll ? <ScrollView keyboardShouldPersistTaps="handled">{body}</ScrollView> : body}
-        {footer && <View style={s.footer}>{footer}</View>}
+        {footer && <View style={s.footer}><View style={{ flex: 1 }}>{footer}</View></View>}
       </SafeAreaView>
     </LinearGradient>
   );

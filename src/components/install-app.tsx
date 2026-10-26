@@ -14,7 +14,7 @@ function isInstalled() {
   return window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 }
 
-export function InstallApp() {
+export function InstallApp({ hideWhenInstalled }: { hideWhenInstalled?: boolean } = {}) {
   const [installed, setInstalled] = useState(false);
   const [canPrompt, setCanPrompt] = useState(false);
   useEffect(() => {
@@ -27,7 +27,7 @@ export function InstallApp() {
     window.addEventListener('appinstalled', onInstalled);
     return () => { window.removeEventListener('beforeinstallprompt', onPrompt); window.removeEventListener('appinstalled', onInstalled); };
   }, []);
-  if (Platform.OS !== 'web') return null;
+  if (Platform.OS !== 'web' || (hideWhenInstalled && installed)) return null;
 
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   async function install() {

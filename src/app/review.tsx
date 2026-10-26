@@ -1,9 +1,10 @@
 // Review: every overlap, travel, and workload warning in one list.
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { Badge, Button, Card, Empty, Screen, T } from '../components/ui';
+import { EventCard } from '../components/EventCard';
+import { Button, Card, Empty, Screen, T } from '../components/ui';
 import { useSchedule } from '../data/hooks';
-import { DAY_NAMES, formatTime } from '../lib/time';
+import { DAY_NAMES } from '../lib/time';
 import { colors, space } from '../theme/tokens';
 
 const LABEL = { overlap: 'Overlap', travel: 'Short travel time', workload: 'Long stretch' } as const;
@@ -18,19 +19,16 @@ export default function Review() {
       ) : (
         <>
           <T color={colors.textSecondary}>These checks use simple rules you can change in Settings. Travel warnings are based on the gap between events, not on real distance. Workload notes are reminders, not health advice.</T>
-          {issues.map((iss, n) => (
-            <Card key={n} style={{ gap: space.sm }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Badge tone={iss.kind === 'overlap' ? 'error' : 'warning'} label={LABEL[iss.kind]} />
-                <T v="captionStrong" color={colors.textSecondary}>{DAY_NAMES[iss.weekday]}</T>
+          {issues.map((iss, n) => {
+            const e = byId.get(iss.eventIds[iss.eventIds.length - 1]) ?? byId.get(iss.eventIds[0]);
+            return (
+              <View key={n} style={{ gap: space.xs }}>
+                <T v="captionStrong" color={colors.textSecondary}>{DAY_NAMES[iss.weekday]} · {LABEL[iss.kind]}</T>
+                {e ? <EventCard event={e} issue={iss} onPress={() => router.push(`/event/${e.id}`)} /> : <Card><T>{iss.message}</T></Card>}
+                {e && <T v="caption" color={colors.textSecondary}>{iss.message}</T>}
               </View>
-              <T>{iss.message}</T>
-              {iss.eventIds.map((id) => {
-                const e = byId.get(id);
-                return e ? <Button key={id} kind="text" label={`Edit ${e.title} (${formatTime(e.startMin)})`} onPress={() => router.push(`/event/${id}`)} /> : null;
-              })}
-            </Card>
-          ))}
+            );
+          })}
         </>
       )}
     </Screen>

@@ -101,6 +101,16 @@ const SECTIONS: Section[] = [
     'iPhone (Safari): tap the Share button, then "Add to Home Screen".',
     'Open ScheduLens from the new icon. It runs full screen, like an app.',
   ] },
+  { id: 'activities', title: '16. Plan an activity with your group', steps: [
+    'Open Groups and tap your group.',
+    'Under Free time, pick a day and tap Plan on a time that suits everyone, or tap Plan an activity.',
+    'Enter what it is, the date, the time, and an optional place, then tap Share with group.',
+    'Everyone in the group sees it under Group activities. Only the person who added it can remove it.',
+  ] },
+  { id: 'photo', title: '17. Add a profile photo', steps: [
+    'Open Profile & Settings (the gear on Home, or tap your picture).',
+    'Tap Add photo and choose a picture. It stays on this device and is not shared with groups.',
+  ] },
 ];
 
 export default function Help() {

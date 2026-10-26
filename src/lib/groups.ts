@@ -96,3 +96,41 @@ export async function leaveGroup(groupId: string) {
   const { error } = await sb().rpc('leave_group', { gid: groupId });
   if (error) throw error;
 }
+
+// --- Group activities: a date and time everyone in the group can see ---------
+export interface Activity { id: string; title: string; day: string; startMin: number; endMin: number; place: string; by: string; mine: boolean }
+
+export async function loadActivities(groupId: string): Promise<Activity[]> {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const iso = toIsoDate(today);
+  const { data: s } = await sb().auth.getSession();
+  const me = s.session?.user.id;
+  const { data, error } = await sb().from('group_activities')
+    .select('id, title, day, start_min, end_min, place, created_by, created_by_name')
+    .eq('group_id', groupId).gte('day', iso).order('day').order('start_min');
+  if (error) throw error;
+  return (data ?? []).map((a) => ({ id: a.id, title: a.title, day: a.day, startMin: a.start_min, endMin: a.end_min, place: a.place ?? '', by: a.created_by_name, mine: a.created_by === me }));
+}
+
+export async function addActivity(groupId: string, a: { title: string; day: string; startMin: number; endMin: number; place: string }, byName: string) {
+  const { error } = await sb().from('group_activities').insert({
+    group_id: groupId, title: a.title.trim(), day: a.day, start_min: a.startMin, end_min: a.endMin, place: a.place.trim() || null, created_by_name: byName,
+  });
+  if (error) throw error;
+}
+
+export async function deleteActivity(id: string) {
+  const { error } = await sb().from('group_activities').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** YYYY-MM-DD in local time. */
+export function toIsoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+/** The next date (today or later) that falls on this weekday. */
+export function nextDateFor(weekday: number) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
+  return toIsoDate(d);
+}

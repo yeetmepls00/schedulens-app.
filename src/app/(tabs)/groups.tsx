@@ -5,8 +5,8 @@ import { View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Screen, T } from '../../components/ui';
 import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
-import { createGroup, groupsConfigured, leaveGroup, loadMembers, saveGroups, savedGroups, shareBusy, type Group, type MemberBusy } from '../../lib/groups';
-import { DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
+import { addActivity, createGroup, deleteActivity, groupsConfigured, leaveGroup, loadActivities, loadMembers, nextDateFor, saveGroups, savedGroups, shareBusy, type Activity, type Group, type MemberBusy } from '../../lib/groups';
+import { DAY_SHORT, formatDuration, formatTime, parseTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
 import { colors, space } from '../../theme/tokens';
 
@@ -20,6 +20,9 @@ export default function Groups() {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [plan, setPlan] = useState<{ title: string; day: string; start: string; end: string; place: string } | null>(null);
+  const [planErr, setPlanErr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const displayName = getSetting('displayName', '');
 
@@ -38,7 +41,7 @@ export default function Groups() {
 
   useEffect(() => {
     if (!open) return;
-    run(async () => setMembers(await loadMembers(open.id)));
+    run(async () => { setMembers(await loadMembers(open.id)); setActivities(await loadActivities(open.id)); });
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!groupsConfigured) {
@@ -64,6 +67,50 @@ export default function Groups() {
         </View>
         <T v="section">{members.length} {members.length === 1 ? 'member' : 'members'}</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{members.map((m) => <Badge key={m.userId} tone="neutral" label={m.displayName} />)}</View>
+        <T v="section">Group activities</T>
+        <T v="caption" color={colors.textSecondary}>Set a date for a meeting or activity. Everyone in the group can see it.</T>
+        {activities.length === 0 && !plan && <Empty icon="calendar-outline" title="Nothing planned yet" message="Pick a free time below and tap Plan, or add one yourself." />}
+        {activities.map((a) => (
+          <Card key={a.id} style={{ gap: 4 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <T v="cardTitle" style={{ flex: 1 }}>{a.title}</T>
+              {a.mine && <Button kind="text" label="Remove" onPress={() => run(async () => { await deleteActivity(a.id); setActivities(await loadActivities(open.id)); })} />}
+            </View>
+            <T>{new Date(a.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {formatTime(a.startMin)} – {formatTime(a.endMin)}</T>
+            <T v="caption" color={colors.textSecondary}>{a.place ? `${a.place} · ` : ''}Added by {a.by || 'a member'}</T>
+          </Card>
+        ))}
+        {plan ? (
+          <Card style={{ gap: space.md }}>
+            <T v="cardTitle">Plan an activity</T>
+            {planErr && <Banner tone="error" title="Check the details" message={planErr} />}
+            <Field label="What" value={plan.title} onChangeText={(v) => setPlan({ ...plan, title: v })} placeholder="e.g. Thesis meeting" />
+            <Field label="Date (YYYY-MM-DD)" value={plan.day} onChangeText={(v) => setPlan({ ...plan, day: v })} />
+            <View style={{ flexDirection: 'row', gap: space.md }}>
+              <View style={{ flex: 1 }}><Field label="Start" value={plan.start} onChangeText={(v) => setPlan({ ...plan, start: v })} /></View>
+              <View style={{ flex: 1 }}><Field label="End" value={plan.end} onChangeText={(v) => setPlan({ ...plan, end: v })} /></View>
+            </View>
+            <Field label="Place (optional)" value={plan.place} onChangeText={(v) => setPlan({ ...plan, place: v })} placeholder="e.g. Library" />
+            <View style={{ flexDirection: 'row', gap: space.md }}>
+              <Button kind="secondary" label="Cancel" style={{ flex: 1 }} onPress={() => setPlan(null)} />
+              <Button label="Share with group" style={{ flex: 1 }} loading={busy} onPress={() => {
+                const st = parseTime(plan.start)?.minutes, en = parseTime(plan.end)?.minutes;
+                const d = /^\d{4}-\d{2}-\d{2}$/.test(plan.day) ? new Date(plan.day + 'T00:00:00') : null;
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const err = !plan.title.trim() ? 'Add a name for the activity.'
+                  : !d || isNaN(d.getTime()) ? 'Enter the date like 2026-11-03.'
+                  : d < today ? 'Pick today or a later date.'
+                  : st === undefined || en === undefined ? 'Enter times like 3:00 PM.'
+                  : en <= st ? 'The end time must be after the start time.' : null;
+                if (err) { setPlanErr(err); return; }
+                run(async () => { await addActivity(open.id, { title: plan.title, day: plan.day, startMin: st!, endMin: en!, place: plan.place }, displayName); setPlan(null); setActivities(await loadActivities(open.id)); });
+              }} />
+            </View>
+          </Card>
+        ) : (
+          <Button kind="tonal" icon="add" label="Plan an activity" onPress={() => { setPlanErr(null); setPlan({ title: '', day: nextDateFor(day), start: '3:00 PM', end: '4:00 PM', place: '' }); }} />
+        )}
+        <T v="section">Free time</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {DAY_SHORT.map((d, w) => <Chip key={d} label={d} on={day === w} onPress={() => setDay(w as Weekday)} />)}
         </View>
@@ -71,7 +118,10 @@ export default function Groups() {
           slots.map((sl, i) => (
             <Card key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <T v="cardTitle">{formatTime(sl.startMin)} – {formatTime(sl.endMin)}</T>
-              <Badge tone="success" label={formatDuration(sl.endMin - sl.startMin)} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <Badge tone="success" label={formatDuration(sl.endMin - sl.startMin)} />
+                <Button kind="text" label="Plan" onPress={() => { setPlanErr(null); setPlan({ title: '', day: nextDateFor(day), start: formatTime(sl.startMin), end: formatTime(Math.min(sl.endMin, sl.startMin + 60)), place: '' }); }} />
+              </View>
             </Card>
           ))}
         <Button kind="tonal" label="Update my busy times" icon="refresh" loading={busy} onPress={() => run(async () => { await shareBusy(open.id, events); setMembers(await loadMembers(open.id)); })} />
