@@ -86,26 +86,26 @@ export default function TimetableEditor() {
       {dirty && !notice && <Badge tone="warning" label="Preview: changes are not saved yet" />}
       {overlaps.length > 0 && (
         <Banner tone="warning" title={`${overlaps.length} ${overlaps.length === 1 ? 'overlap' : 'overlaps'}`}
-          message={`Overlapping classes are shown side by side with a dashed red border. ${overlaps[0].message}`} />
+          message={`Overlapping events are shown side by side with a dashed red border. ${overlaps[0].message}`} />
       )}
 
       {events.length === 0 ? (
         <Card style={{ gap: space.sm }}>
-          <T v="cardTitle">No classes yet</T>
-          <T color={colors.textSecondary}>Scan a schedule or add a class to see your timetable.</T>
-          <Button label="Add a class" icon="add" onPress={() => { const e = newClass(); change({ events: [...events, e] }); setSelectedId(e.id); setTab('classes'); }} />
+          <T v="cardTitle">No events yet</T>
+          <T color={colors.textSecondary}>Scan a schedule or add an event to see your timetable.</T>
+          <Button label="Add an event" icon="add" onPress={() => { const e = newClass(); change({ events: [...events, e] }); setSelectedId(e.id); setTab('classes'); }} />
         </Card>
       ) : (
-        <Timetable events={events} style={shownStyle} selectedId={selectedId ?? undefined} title="My Class Schedule"
+        <Timetable events={events} style={shownStyle} selectedId={selectedId ?? undefined} title="My Schedule"
           onSelect={(e) => { setSelectedId(e.id); setTab('classes'); setPreviewId(null); }} />
       )}
 
-      <Segmented value={tab} onChange={(t) => { setTab(t); setPreviewId(null); }} options={[{ key: 'design', label: 'Design' }, { key: 'classes', label: 'Classes' }]} />
+      <Segmented value={tab} onChange={(t) => { setTab(t); setPreviewId(null); }} options={[{ key: 'design', label: 'Design' }, { key: 'classes', label: 'Events' }]} />
 
       {tab === 'design' ? (
         <>
           <T v="section">Presets</T>
-          <T v="caption" color={colors.textSecondary}>Tap a preset to preview it above. Applying a preset only changes the look. Your classes stay the same.</T>
+          <T v="caption" color={colors.textSecondary}>Tap a preset to preview it above. Applying a preset only changes the look. Your events stay the same.</T>
           {PRESETS.map((p) => {
             const active = style.preset === p.id && !previewId, previewing = previewId === p.id;
             return (
@@ -141,7 +141,7 @@ export default function TimetableEditor() {
               {[['Small', 0.85], ['Normal', 1], ['Large', 1.2]].map(([l, v]) => <Chip key={l} label={l as string} on={style.fontScale === v} onPress={() => setStyle({ fontScale: v as number })} />)}
               <Chip label="Bold titles" on={style.bold} onPress={() => setStyle({ bold: !style.bold })} />
             </View>
-            <T v="label">Show on each class</T>
+            <T v="label">Show on each event</T>
             <View style={{ gap: 4 }}>
               <Checkbox label="Course code" on={style.showCode} onPress={() => setStyle({ showCode: !style.showCode })} />
               <Checkbox label="Room" on={style.showRoom} onPress={() => setStyle({ showRoom: !style.showRoom })} />
@@ -159,22 +159,22 @@ export default function TimetableEditor() {
               <Chip label="Start later" on={false} onPress={() => setStyle({ startHour: Math.min(style.endHour - 1, style.startHour + 1) })} />
               <Chip label="End earlier" on={false} onPress={() => setStyle({ endHour: Math.max(style.startHour + 1, style.endHour - 1) })} />
               <Chip label="End later" on={false} onPress={() => setStyle({ endHour: Math.min(24, style.endHour + 1) })} />
-              <Chip label="Fit to my classes" on={false} onPress={() => setStyle(fitHours(events, style))} />
+              <Chip label="Fit to my events" on={false} onPress={() => setStyle(fitHours(events, style))} />
             </View>
             <T v="label">Row height</T>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {[['Compact', 36], ['Comfortable', 48], ['Spacious', 64]].map(([l, v]) => <Chip key={l} label={l as string} on={style.hourHeight === v} onPress={() => setStyle({ hourHeight: v as number })} />)}
             </View>
             <Button kind="tonal" label={`Reset look to ${presetById(style.preset).name}`} icon="refresh" onPress={() => change({ style: applyPreset(style, style.preset) })} />
-            <T v="caption" color={colors.textSecondary}>Resetting only changes colors and layout. Your classes are not touched.</T>
+            <T v="caption" color={colors.textSecondary}>Resetting only changes colors and layout. Your events are not touched.</T>
           </Card>
         </>
       ) : (
         <>
-          <Button kind="tonal" icon="add" label="Add a class" onPress={() => { const e = newClass(); change({ events: [...events, e] }); setSelectedId(e.id); }} />
+          <Button kind="tonal" icon="add" label="Add an event" onPress={() => { const e = newClass(); change({ events: [...events, e] }); setSelectedId(e.id); }} />
           {!selected ? (
             <>
-              <T color={colors.textSecondary}>Tap a class in the timetable, or pick one below, to edit it.</T>
+              <T color={colors.textSecondary}>Tap an event in the timetable, or pick one below, to edit it.</T>
               {events.map((e) => (
                 <Pressable key={e.id} onPress={() => setSelectedId(e.id)} accessibilityRole="button">
                   <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
@@ -217,7 +217,7 @@ function ClassPanel({ event: e, color, onChange, onColor, onDuplicate, onDelete,
   return (
     <Card style={{ gap: space.md }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <T v="cardTitle">Edit class</T>
+        <T v="cardTitle">Edit event</T>
         <Button kind="text" label="Done" onPress={() => { apply(); onClose(); }} />
       </View>
       <Field label="Subject" value={f.title} onChangeText={(v) => setF({ ...f, title: v })} onBlur={apply} />
@@ -275,7 +275,7 @@ function IconBtn({ icon, label, onPress, disabled }: { icon: 'arrow-undo' | 'arr
 }
 
 const isDark = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16) < 200;
-const newClass = (): ScheduleEvent => ({ id: newId(), title: 'New class', weekday: 1, startMin: 8 * 60, endMin: 9 * 60 });
+const newClass = (): ScheduleEvent => ({ id: newId(), title: 'New event', weekday: 1, startMin: 8 * 60, endMin: 9 * 60 });
 
 // Shown in preset previews before any classes exist. Never saved.
 const SAMPLE: ScheduleEvent[] = [

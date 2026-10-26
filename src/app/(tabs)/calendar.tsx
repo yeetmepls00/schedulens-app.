@@ -27,7 +27,6 @@ export default function Calendar() {
 
   return (
     <Screen title="Calendar" right={add}>
-      <Button kind="tonal" icon="color-palette" label="Timetable editor" onPress={() => router.push('/timetable')} />
       <Segmented value={view} onChange={setView} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
       {events.length === 0 ? (
         <Empty icon="calendar-outline" title="Your calendar is empty" message="Import a schedule or add an event." action="Add event" onAction={() => router.push('/event/new')} />
@@ -53,6 +52,17 @@ export default function Calendar() {
         ))
       ) : (
         <Heatmap events={events} />
+      )}
+      {events.length > 0 && (
+        <Pressable onPress={() => router.push('/timetable')} accessibilityRole="button" accessibilityLabel="Open the timetable editor"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.card, backgroundColor: '#FFF4E8', borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#F4B860', marginTop: space.sm }}>
+          <T style={{ fontSize: 28 }}>🎨</T>
+          <View style={{ flex: 1 }}>
+            <T v="cardTitle">Design your timetable</T>
+            <T v="caption" color={colors.textSecondary}>Pick colors and a theme for your week.</T>
+          </View>
+          <T v="cardTitle" color={colors.strawberryStrong}>›</T>
+        </Pressable>
       )}
     </Screen>
   );

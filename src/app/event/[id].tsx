@@ -77,7 +77,7 @@ export default function EventForm() {
   return (
     <Screen title={isNew ? 'New event' : 'Edit event'} back footer={<Button label="Save" onPress={save} />}>
       {!isNew && !old && <Banner tone="error" title="Event not found" message="It may have been deleted." />}
-      <Field label="Title" value={title} onChangeText={setTitle} error={err('title')} placeholder="e.g. Data Structures" />
+      <Field label="Title" value={title} onChangeText={setTitle} error={err('title')} placeholder="e.g. Math class, Team meeting, Shift" />
       <View style={{ gap: 6 }}>
         <T v="label">Subject color</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

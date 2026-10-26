@@ -14,12 +14,12 @@ import type { Weekday } from '../../lib/types';
 import { colors, radius, space } from '../../theme/tokens';
 
 const TIPS = [
-  'Tap a class in the Timetable editor to give it its own color.',
+  'Tap an event in the Timetable editor to give it its own color.',
   'Share your group code so friends can find free time with you.',
   'Pull down at the top of any screen to refresh.',
   'Save a backup in Settings before switching phones.',
   'Check the Heatmap to see your busiest hours.',
-  'Add a class to several days at once: tap Mon, then Fri.',
+  'Add an event to several days at once: tap Mon, then Fri.',
 ];
 
 export default function Home() {
@@ -33,7 +33,7 @@ export default function Home() {
   const busyMin = todays.reduce((m, e) => m + e.endMin - e.startMin, 0);
   const soon = upcoming.find((e) => e.startMin > nowMin);
   const mood = events.length === 0 ? { emoji: '🌱', line: "Let's set up your week!" }
-    : upcoming.some((e) => e.startMin <= nowMin) ? { emoji: '📖', line: 'Class in progress. You got this!' }
+    : upcoming.some((e) => e.startMin <= nowMin) ? { emoji: '📖', line: 'Event in progress. You got this!' }
     : soon ? { emoji: '🍓', line: `Next: ${soon.title} at ${formatTime(soon.startMin)}` }
     : todays.length ? { emoji: '🎉', line: 'All done for today. Great job!' }
     : { emoji: '☁️', line: 'A free day. Time to recharge!' };
@@ -71,7 +71,7 @@ export default function Home() {
           <T v="cardTitle">{mood.line}</T>
         </View>
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {[[String(todays.length), todays.length === 1 ? 'class today' : 'classes today', '📚'], [busyMin ? formatDuration(busyMin) : '0h', 'scheduled', '⏰'], [String(upcoming.length), 'still to go', '🎯']].map(([n, l, em]) => (
+          {[[String(todays.length), todays.length === 1 ? 'event today' : 'events today', '📚'], [busyMin ? formatDuration(busyMin) : '0h', 'scheduled', '⏰'], [String(upcoming.length), 'still to go', '🎯']].map(([n, l, em]) => (
             <View key={l} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 16, padding: 10, alignItems: 'center' }}>
               <T style={{ fontSize: 16 }}>{em}</T>
               <T v="cardTitle">{n}</T>
@@ -108,7 +108,7 @@ export default function Home() {
       </View>
 
       {events.length === 0 ? (
-        <Empty icon="calendar-outline" title="No schedule yet" message="Scan or upload your class schedule to get started." action="Add a schedule" onAction={() => router.push('/scan')} />
+        <Empty icon="calendar-outline" title="No schedule yet" message="Scan or upload your schedule (classes, meetings, work) to get started." action="Add a schedule" onAction={() => router.push('/scan')} />
       ) : upcoming.length === 0 ? (
         <>
           <Banner tone="matcha" title={todays.length ? "You're free for the rest of today" : "You're free today"} message={todays.length ? `${todays.length} ${todays.length === 1 ? 'event' : 'events'} earlier today.` : 'Nothing scheduled today. Enjoy the break.'} />

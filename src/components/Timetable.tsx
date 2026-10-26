@@ -59,7 +59,7 @@ export function Timetable({ events, style, selectedId, onSelect, compact, title 
               return (
                 <Pressable key={e.id} disabled={!onSelect} onPress={() => onSelect?.(e)}
                   accessibilityRole={onSelect ? 'button' : undefined}
-                  accessibilityLabel={`${e.title}, ${DAY_NAMES[e.weekday]} ${formatTime(e.startMin)} to ${formatTime(e.endMin)}${overlaps ? ', overlaps another class' : ''}`}
+                  accessibilityLabel={`${e.title}, ${DAY_NAMES[e.weekday]} ${formatTime(e.startMin)} to ${formatTime(e.endMin)}${overlaps ? ', overlaps another event' : ''}`}
                   style={{
                     position: 'absolute', top, height, left: `${(column / columns) * 100}%`, width: `${100 / columns}%`,
                     padding: 1,
@@ -95,7 +95,7 @@ export function Timetable({ events, style, selectedId, onSelect, compact, title 
         <View style={{ marginTop: 8, borderTopWidth: 1, borderColor: style.gridLine, paddingTop: 6, gap: 2 }}>
           <Text style={{ color: style.mutedText, fontSize: fs(10), fontWeight: '700' }}>NOTES</Text>
           {events.filter((e) => e.notes).length === 0
-            ? <Text style={{ color: style.mutedText, fontSize: fs(10) }}>Add notes to a class to see them here.</Text>
+            ? <Text style={{ color: style.mutedText, fontSize: fs(10) }}>Add notes to an event to see them here.</Text>
             : [...new Map(events.filter((e) => e.notes).map((e) => [e.title, e])).values()].map((e) => (
               <Text key={e.id} style={{ color: style.text, fontSize: fs(10) }}>• {e.courseCode ?? e.title}: {e.notes}</Text>
             ))}

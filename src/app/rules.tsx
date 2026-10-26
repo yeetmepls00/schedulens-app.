@@ -35,7 +35,7 @@ export default function Rules() {
       {saved && <Banner tone="success" title="Saved" message="Your settings were updated." />}
       <Card style={{ gap: space.md }}>
         <T v="cardTitle">Term dates</T>
-        <T v="caption" color={colors.textSecondary}>Used when exporting, so weekly classes stop at the end of term.</T>
+        <T v="caption" color={colors.textSecondary}>Used when exporting, so weekly events stop at the end of term.</T>
         <View style={{ flexDirection: 'row', gap: space.md }}>
           <View style={{ flex: 1 }}><Field label="Start" value={termStart} onChangeText={setTermStart} placeholder="2026-08-10" error={errs.termStart} /></View>
           <View style={{ flex: 1 }}><Field label="End" value={termEnd} onChangeText={setTermEnd} placeholder="2026-12-18" error={errs.termEnd} /></View>

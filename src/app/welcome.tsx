@@ -17,7 +17,7 @@ const SLIDES: { icon: IconName; tint: string; fg: string; title: string; text: s
   { icon: 'checkmark-done-outline', tint: colors.matchaSoft, fg: colors.matchaStrong, title: 'Check it before it’s saved',
     text: 'Every subject, day, time, and room is shown for review. Anything unclear is highlighted for you.', chips: ['Subjects', 'Times', 'Rooms'] },
   { icon: 'color-palette-outline', tint: '#FBE3B8', fg: colors.warning, title: 'Make the timetable yours',
-    text: 'Pick one of five designs, edit any class, and export to Google, Apple, or Outlook Calendar.', chips: ['5 designs', 'Editor', '.ics export'] },
+    text: 'Pick one of five designs, edit any event, and export to Google, Apple, or Outlook Calendar.', chips: ['5 designs', 'Editor', '.ics export'] },
 ];
 
 export default function Welcome() {

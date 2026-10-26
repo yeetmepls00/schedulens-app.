@@ -32,17 +32,20 @@ export const radius = { sm: 8, button: 12, card: 16, pill: 999 } as const;
 /** Quicksand (loaded in public/index.html) matches the Figma design; falls back to the system font. */
 export const FONT = "Quicksand, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
+/** Hand-drawn Gochi Hand for titles (the whimsy font in Figma). It has one weight, so titles stay at normal weight. */
+export const WHIMSY = "'Gochi Hand', 'Comic Sans MS', cursive";
+
 export const type = {
-  brand: { fontSize: 36, fontFamily: FONT, fontWeight: '700' as const, letterSpacing: 0.5 },
-  welcome: { fontSize: 28, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 36 },
-  screenTitle: { fontSize: 20, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 28 },
-  section: { fontSize: 18, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 24 },
-  cardTitle: { fontSize: 16, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 22 },
-  body: { fontSize: 14, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 20 },
-  label: { fontSize: 14, fontFamily: FONT, fontWeight: '600' as const, lineHeight: 20 },
+  brand: { fontSize: 44, fontFamily: WHIMSY, fontWeight: '400' as const, letterSpacing: 0.5 },
+  welcome: { fontSize: 34, fontFamily: WHIMSY, fontWeight: '400' as const, lineHeight: 40 },
+  screenTitle: { fontSize: 28, fontFamily: WHIMSY, fontWeight: '400' as const, lineHeight: 34 },
+  section: { fontSize: 25, fontFamily: WHIMSY, fontWeight: '400' as const, lineHeight: 30 },
+  cardTitle: { fontSize: 17, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 23 },
+  body: { fontSize: 15, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 21 },
+  label: { fontSize: 15, fontFamily: FONT, fontWeight: '600' as const, lineHeight: 21 },
   button: { fontSize: 15, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 20 },
-  caption: { fontSize: 12, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 16 },
-  captionStrong: { fontSize: 12, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 16 },
+  caption: { fontSize: 13, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 18 },
+  captionStrong: { fontSize: 13, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 18 },
 } as const;
 
 /** Minimum touch target on both platforms. */

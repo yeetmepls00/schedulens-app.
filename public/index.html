@@ -26,7 +26,7 @@
     <!-- Quicksand matches the Figma design. Without it each device used its own system font. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" href="/favicon.ico"/>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#FFF0F1" />
@@ -49,5 +49,32 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
+    <!-- Whimsy loading screen: shows until the app draws its first screen. -->
+    <div id="boot" role="status" aria-label="Loading ScheduLens">
+      <div class="sparkles"><span>✿</span><span>✦</span><span>♡</span><span>✿</span><span>✦</span></div>
+      <img src="/icons/icon-192.png" alt="" class="bob" />
+      <div class="name">ScheduLens</div>
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="msg" id="bootmsg">Sharpening the pencils…</div>
+    </div>
+    <style>
+      #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(180deg,#EEF3E2 0%,#FFF8F5 50%,#FBD0D4 100%);font-family:Quicksand,system-ui,sans-serif;color:#3A2A2C;z-index:9}
+      #root:not(:empty)~#boot{display:none}
+      #boot .bob{width:112px;height:112px;border-radius:30px;box-shadow:0 14px 30px rgba(184,50,75,.25);animation:bob 1.4s ease-in-out infinite}
+      #boot .name{font-family:'Gochi Hand',cursive;font-size:44px;color:#B8324B}
+      #boot .msg{font-size:16px;font-weight:600;color:#6B5B5D}
+      #boot .dots{display:flex;gap:8px}#boot .dots i{width:12px;height:12px;border-radius:6px;background:#E8708A;animation:hop .9s ease-in-out infinite}
+      #boot .dots i:nth-child(2){background:#9CC27A;animation-delay:.15s}#boot .dots i:nth-child(3){background:#F4B860;animation-delay:.3s}
+      #boot .sparkles{position:absolute;inset:0;pointer-events:none}#boot .sparkles span{position:absolute;font-size:26px;color:#E8708A;opacity:.5;animation:twinkle 2.4s ease-in-out infinite}
+      #boot .sparkles span:nth-child(1){top:14%;left:14%}#boot .sparkles span:nth-child(2){top:22%;right:16%;color:#9CC27A;animation-delay:.6s}#boot .sparkles span:nth-child(3){bottom:22%;left:20%;animation-delay:1.2s}#boot .sparkles span:nth-child(4){bottom:14%;right:18%;color:#F4B860;animation-delay:.3s}#boot .sparkles span:nth-child(5){top:48%;left:8%;color:#F4B860;animation-delay:.9s}
+      @keyframes bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-14px) rotate(3deg)}}
+      @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+      @keyframes twinkle{0%,100%{transform:scale(.8);opacity:.3}50%{transform:scale(1.2);opacity:.8}}
+      @media (prefers-reduced-motion:reduce){#boot *{animation:none!important}}
+    </style>
+    <script>
+      (function(){var m=['Sharpening the pencils…','Stitching your week together…','Finding your free time…','Watering the strawberries…'],i=0;
+      var t=setInterval(function(){var e=document.getElementById('bootmsg');if(!e||document.getElementById('root').childElementCount){clearInterval(t);return}i=(i+1)%m.length;e.textContent=m[i]},1400)})();
+    </script>
 </body>
 </html>

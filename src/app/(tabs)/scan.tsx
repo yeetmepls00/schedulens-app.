@@ -23,8 +23,8 @@ export default function Scan() {
       const progress = (text: string, fraction?: number) => setStage({ text, fraction });
       const { rows, events } = kind === 'pdf' ? await readSchedulePdf(uri, progress) : await readScheduleImage(uri, progress);
       if (events.length === 0) {
-        setError({ title: 'No class times found', message: rows.length
-          ? 'Text was found, but no class times like “9:00-10:30 AM”. Try a clearer, straight-on image of the whole table, or enter the schedule manually.'
+        setError({ title: 'No event times found', message: rows.length
+          ? 'Text was found, but no event times like “9:00-10:30 AM”. Try a clearer, straight-on image of the whole table, or enter the schedule manually.'
           : 'No text could be read from this file. Try a sharper, well-lit image, or enter the schedule manually.' });
         return;
       }

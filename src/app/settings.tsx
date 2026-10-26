@@ -181,7 +181,7 @@ export default function Settings() {
         <RowBase icon="walk-outline" label="Travel time warnings" sub="When the gap between events is short"
           right={<Toggle label="Travel time warnings" value={alerts.travel} onChange={(v) => saveAlerts({ ...alerts, travel: v })} />} />
         {alerts.travel && <RowBase icon="time-outline" label="Minimum gap" right={<Stepper label="minimum gap" value={rules.minTravelMin} unit="min" step={5} min={5} max={60} onChange={(v) => saveRules({ ...rules, minTravelMin: v })} />} />}
-        <RowBase icon="barbell-outline" label="Long day warnings" sub="When classes run back to back too long" last={!alerts.workload}
+        <RowBase icon="barbell-outline" label="Long day warnings" sub="When events run back to back too long" last={!alerts.workload}
           right={<Toggle label="Long day warnings" value={alerts.workload} onChange={(v) => saveAlerts({ ...alerts, workload: v })} />} />
         {alerts.workload && <RowBase icon="hourglass-outline" label="Warn after" last right={<Stepper label="hours before warning" value={rules.maxContinuousMin / 60} unit="h" step={1} min={2} max={10} onChange={(v) => saveRules({ ...rules, maxContinuousMin: v * 60 })} />} />}
       </Section>
