@@ -2,9 +2,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { confirm } from '../../lib/confirm';
 import { EventCard } from '../../components/EventCard';
-import { Banner, Button, Chip, Empty, Screen, Segmented, T } from '../../components/ui';
-import { getSetting } from '../../data/db';
+import { Banner, Button, Chip, Empty, Icon, Screen, Segmented, T } from '../../components/ui';
+import { deleteEvent, getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
 import { nextEvent } from '../../lib/next';
 import { colorFor, DEFAULT_STYLE, textOn, type TimetableStyle } from '../../lib/timetable';
@@ -23,11 +24,41 @@ export default function Calendar() {
   const { events, issueFor, issues } = useSchedule();
   const [view, setView] = useState<View_>(() => getSetting<View_>('defaultView', 'day'));
   const [day, setDay] = useState<Weekday>(new Date().getDay() as Weekday);
-  const add = <Button label="Add" kind="text" icon="add" onPress={() => router.push('/event/new')} />;
+  // Select mode: tick events, then delete them together.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const stop = () => { setSelecting(false); setPicked(new Set()); };
+  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const canSelect = view === 'day' || view === 'list' || view === 'month';
+  function removePicked() {
+    const n = picked.size;
+    confirm(`Delete ${n} ${n === 1 ? 'event' : 'events'}?`, 'This cannot be undone.', [
+      { text: 'Delete', destructive: true, onPress: () => { picked.forEach((id) => deleteEvent(id)); stop(); } },
+    ]);
+  }
+  const card = (e: ScheduleEvent) => selecting ? (
+    <Pressable key={e.id} onPress={() => toggle(e.id)} accessibilityRole="checkbox" accessibilityState={{ checked: picked.has(e.id) }} accessibilityLabel={e.title}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+      <Icon name={picked.has(e.id) ? 'checkbox' : 'square-outline'} color={picked.has(e.id) ? colors.strawberryStrong : colors.textSecondary} size={26} />
+      <View style={{ flex: 1, opacity: picked.has(e.id) ? 1 : 0.85 }} pointerEvents="none"><EventCard event={e} issue={issueFor(e.id)} onPress={() => toggle(e.id)} /></View>
+    </Pressable>
+  ) : <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />;
+  const add = (
+    <View style={{ flexDirection: 'row' }}>
+      {events.length > 0 && canSelect && <Button label={selecting ? 'Cancel' : 'Select'} kind="text" onPress={() => (selecting ? stop() : setSelecting(true))} />}
+      {!selecting && <Button label="Add" kind="text" icon="add" onPress={() => router.push('/event/new')} />}
+    </View>
+  );
 
   return (
-    <Screen title="Calendar" right={add}>
-      <Segmented value={view} onChange={setView} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
+    <Screen title="Calendar" right={add} footer={selecting ? (
+      <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
+        <T v="captionStrong" style={{ flex: 1 }}>{picked.size} selected</T>
+        <Button kind="secondary" label="Cancel" onPress={stop} />
+        <Button icon="trash" label="Delete" disabled={picked.size === 0} onPress={removePicked} />
+      </View>
+    ) : undefined}>
+      <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
       {events.length === 0 ? (
         <Empty icon="calendar-outline" title="Your calendar is empty" message="Import a schedule or add an event." action="Add event" onAction={() => router.push('/event/new')} />
       ) : view === 'day' ? (
@@ -36,18 +67,18 @@ export default function Calendar() {
             {WEEK.map((d) => <Chip key={d} label={DAY_SHORT[d]} on={d === day} onPress={() => setDay(d)} />)}
           </View>
           <T v="cardTitle">{DAY_NAMES[day]} · {events.filter((e) => e.weekday === day).length} events</T>
-          {events.filter((e) => e.weekday === day).map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)}
+          {events.filter((e) => e.weekday === day).map(card)}
           <FreeDay events={events} day={day} label={DAY_NAMES[day]} issueFor={issueFor} />
         </>
       ) : view === 'week' ? (
         <WeekGrid events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} />
       ) : view === 'month' ? (
-        <MonthView events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} issueFor={issueFor} />
+        <MonthView card={card} events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} issueFor={issueFor} />
       ) : view === 'list' ? (
         WEEK.filter((d) => events.some((e) => e.weekday === d)).map((d) => (
           <View key={d} style={{ gap: space.sm }}>
             <T v="captionStrong" color={colors.textSecondary}>{DAY_NAMES[d].toUpperCase()}</T>
-            {events.filter((e) => e.weekday === d).map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)}
+            {events.filter((e) => e.weekday === d).map(card)}
           </View>
         ))
       ) : (
@@ -148,7 +179,7 @@ function Heatmap({ events }: { events: ScheduleEvent[] }) {
 }
 
 /** 2.2 Calendar – Month. Classes repeat weekly, so each date shows that weekday's events. */
-function MonthView({ events, conflictIds, issueFor }: { events: ScheduleEvent[]; conflictIds: Set<string>; issueFor: (id: string) => ReturnType<ReturnType<typeof useSchedule>['issueFor']> }) {
+function MonthView({ card, events, conflictIds, issueFor }: { card: (e: ScheduleEvent) => React.ReactNode; events: ScheduleEvent[]; conflictIds: Set<string>; issueFor: (id: string) => ReturnType<ReturnType<typeof useSchedule>['issueFor']> }) {
   const today = new Date();
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [picked, setPicked] = useState(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
@@ -197,7 +228,7 @@ function MonthView({ events, conflictIds, issueFor }: { events: ScheduleEvent[];
         <T v="cardTitle">{picked.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {dayEvents(picked).length} events</T>
         <Button kind="text" icon="add" label="Add Event" onPress={() => router.push('/event/new')} />
       </View>
-      {dayEvents(picked).map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)}
+      {dayEvents(picked).map(card)}
       <FreeDay events={events} day={picked.getDay() as Weekday} label={picked.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} issueFor={issueFor} />
     </>
   );
