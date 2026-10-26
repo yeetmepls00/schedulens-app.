@@ -242,7 +242,7 @@ export default function Settings() {
           catch { say('success', 'Share this link', APP_URL); }
         }} />
         <RowBase icon="help-circle-outline" label="Help & user manual" onPress={() => router.push('/help')} />
-        <RowBase icon="information-circle-outline" label="Version" right={<T v="caption" color={colors.textSecondary}>1.0.0</T>} last />
+        <RowBase icon="information-circle-outline" label="Version" right={<T v="caption" color={colors.textSecondary}>1.0.1</T>} last />
       </Section>
     </Screen>
   );
