@@ -90,7 +90,7 @@
         var mine=function(){var s=document.querySelector('script[src*="/_expo/static/js/web/entry-"]');return s&&s.getAttribute('src')};
         var b=document.getElementById('upd');
         b.onclick=function(){location.reload()};
-        function check(){fetch('/',{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/src="(\/_expo\/static\/js\/web\/entry-[a-f0-9]+\.js)"/);var cur=mine();if(cur&&m&&m[1]!==cur)b.style.display='block'}).catch(function(){})}
+        function check(){fetch('/',{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/src="(\/_expo\/static\/js\/web\/entry-[a-f0-9]+\.js)"/);var cur=mine();if(cur&&m&&m[1]!==cur){b.style.display='block';window.__updateReady=true;window.dispatchEvent(new Event('schedulens-update'))}}).catch(function(){})}
         setInterval(check,60000);document.addEventListener('visibilitychange',function(){if(!document.hidden)check()});setTimeout(check,5000);
       })();
     </script>

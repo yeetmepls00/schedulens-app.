@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { setSetting } from '../data/db';
+import { applyUpdate, useUpdateReady } from '../lib/update';
 import { groupsConfigured, recentJoins, savedGroups, type JoinNotice } from '../lib/groups';
 import { Badge, Button, Card, Empty, Screen, T } from '../components/ui';
 import { useFiles } from '../data/db';
@@ -26,13 +27,21 @@ export default function Notifications() {
     recentJoins(savedGroups(), new Date(weekAgo).toISOString()).then(setJoins).catch(() => {});
     setSetting('joinsSeenAt', new Date().toISOString());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const empty = todays.length === 0 && recent.length === 0 && joins.length === 0;
+  const update = useUpdateReady();
+  const empty = !update && todays.length === 0 && recent.length === 0 && joins.length === 0;
   return (
     <Screen title="Notifications" back>
       {empty ? (
         <Empty icon="notifications-outline" title="You're all caught up" message="Warnings for today, new imports, and new group members will show here." />
       ) : (
         <>
+          {update && (
+            <Card style={{ gap: space.sm }}>
+              <Badge tone="success" label="Update available" />
+              <T>A new version of ScheduLens is ready, with the latest fixes and features. ✨</T>
+              <View style={{ alignItems: 'flex-end' }}><Button kind="text" label="Update now" onPress={applyUpdate} /></View>
+            </Card>
+          )}
           {todays.length > 0 && <T v="section">Today</T>}
           {todays.map((i, n) => (
             <Card key={n} style={{ gap: space.sm }}>

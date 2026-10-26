@@ -1,6 +1,7 @@
 // Home: today's events, warnings, and shortcuts.
 import { SummaryGlyph, SummaryIconEditor, type SlotId } from '../../components/summary-icons';
 import { useEffect, useState } from 'react';
+import { useUpdateReady } from '../../lib/update';
 import { groupsConfigured, recentJoins, savedGroups, type JoinNotice } from '../../lib/groups';
 import { Avatar } from '../../components/avatar';
 import { InstallApp } from '../../components/install-app';
@@ -42,6 +43,7 @@ export default function Home() {
     : { emoji: '☁️', line: 'A free day. Time to recharge!' };
   const [editing, setEditing] = useState<SlotId | null>(null);
   // Someone joined one of your groups since you last opened Notifications.
+  const update = useUpdateReady();
   const [joins, setJoins] = useState<JoinNotice[]>([]);
   useEffect(() => {
     if (!groupsConfigured) return;
@@ -70,7 +72,7 @@ export default function Home() {
         <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${todaysIssues.length ? `, ${todaysIssues.length} new` : ''}`}
           style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="notifications-outline" color={colors.text} />
-          {(todaysIssues.length > 0 || joins.length > 0) && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
+          {(todaysIssues.length > 0 || joins.length > 0 || update) && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
         </Pressable>
       </View>
 

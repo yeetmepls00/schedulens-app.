@@ -1,5 +1,6 @@
 // Scan: choose a schedule image or PDF, read it, then go to Verify.
 // Nothing is saved until the person checks every value on the Verify screen.
+import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -9,7 +10,7 @@ import { Banner, Button, Card, Screen, T } from '../../components/ui';
 import { setDraft } from '../../data/draft';
 import { checkScheduleFile, MAX_FILE_MB, type FileKind } from '../../lib/fileCheck';
 import { OcrUnavailableError, readScheduleImage, readSchedulePdf } from '../../lib/ocr';
-import { colors, radius } from '../../theme/tokens';
+import { colors, radius, space } from '../../theme/tokens';
 
 export default function Scan() {
   const [busy, setBusy] = useState(false);
@@ -54,7 +55,13 @@ export default function Scan() {
 
   return (
     <Screen title="Add a schedule">
-      <T color={colors.textSecondary}>ScheduLens reads your schedule {web ? 'in this browser' : 'on this phone'}. The file is not uploaded anywhere.</T>
+      <LinearGradient colors={['#FFD6DC', '#FFF1E6', '#E3F0D3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <T v="section">Turn any schedule into a calendar</T>
+          <T v="caption" color={colors.textSecondary}>Classes, work shifts, meetings, practice. Read {web ? 'in this browser' : 'on this phone'}, never uploaded.</T>
+        </View>
+        <T style={{ fontSize: 52 }}>🍓</T>
+      </LinearGradient>
       {error && <Banner tone="error" title={error.title} message={error.message} />}
       {stage && (
         <Card style={{ gap: 8 }}>
@@ -70,9 +77,30 @@ export default function Scan() {
         <Button label="Choose an image or PDF" icon="document" kind={web ? 'primary' : 'secondary'} onPress={chooseFile} loading={web && busy} disabled={!web && busy} />
         <Button label="Enter manually" icon="create" kind="tonal" onPress={() => router.push('/event/new')} disabled={busy} />
       </Card>
-      <T v="caption" color={colors.textSecondary}>Supported: PNG, JPG and PDF, up to {MAX_FILE_MB} MB. A flat, well-lit image with the whole table visible gives the best results. You will check every value before anything is saved.</T>
-      <Pressable onPress={() => router.push('/groups')} accessibilityRole="link" style={{ alignSelf: 'center', paddingVertical: 8 }}>
-        <T v="captionStrong" color={colors.strawberryStrong}>Got a group QR code? Join a group →</T>
+      <T v="section">How it works</T>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        {([['📸', '1. Snap', 'Photo, screenshot or PDF', '#FFE3E8'], ['✏️', '2. Check', 'Fix anything we misread', '#FFF0D6'], ['📅', '3. Done', 'See it in your calendar', '#E3F0D3']] as const).map(([e, t, d, bg]) => (
+          <View key={t} style={{ flex: 1, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.md, alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}><T style={{ fontSize: 22 }}>{e}</T></View>
+            <T v="captionStrong" center>{t}</T>
+            <T v="caption" color={colors.textSecondary} center>{d}</T>
+          </View>
+        ))}
+      </View>
+      <Card style={{ gap: 6 }}>
+        <T v="captionStrong">💡 Tips for a good scan</T>
+        <T v="caption" color={colors.textSecondary}>• Keep the whole table in view, flat and well lit.</T>
+        <T v="caption" color={colors.textSecondary}>• Times should look like 9:00-10:30 AM.</T>
+        <T v="caption" color={colors.textSecondary}>• PNG, JPG or PDF, up to {MAX_FILE_MB} MB.</T>
+      </Card>
+      <Pressable onPress={() => router.push('/groups')} accessibilityRole="link"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.card, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#D9E0FF' }}>
+        <T style={{ fontSize: 24 }}>👥</T>
+        <View style={{ flex: 1 }}>
+          <T v="captionStrong">Got a group QR code?</T>
+          <T v="caption" color={colors.textSecondary}>Join a group in Groups to find free time together.</T>
+        </View>
+        <T v="cardTitle" color={colors.strawberryStrong}>›</T>
       </Pressable>
     </Screen>
   );

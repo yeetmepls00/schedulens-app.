@@ -196,14 +196,23 @@ export default function Groups() {
         <Button label="Create" loading={busy} disabled={!name.trim()} onPress={() => run(async () => { const g = await createGroup(name.trim(), displayName, events); if (desc.trim()) await setGroupDescription(g.id, desc); save([...groups, g]); setName(''); setDesc(''); setOpen(g); })} />
       </Card>
       <Card style={{ gap: space.md }}>
-        <T v="cardTitle">Join with a code</T>
-        <Field label="Invite code" value={code} onChangeText={setCode} autoCapitalize="characters" />
-        <Button kind="secondary" label="Join" loading={busy} disabled={!code.trim()} onPress={() => { router.push({ pathname: '/join', params: { code: code.trim().toUpperCase() } }); setCode(''); }} />
+        <T v="cardTitle">Join a group</T>
+        <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-end' }}>
+          <View style={{ flex: 1 }}><Field label="Invite code" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="e.g. AB12CD" /></View>
+          <Button label="Join" loading={busy} disabled={!code.trim()} onPress={() => { router.push({ pathname: '/join', params: { code: code.trim().toUpperCase() } }); setCode(''); }} />
+        </View>
         {Platform.OS === 'web' && (
-          <View style={{ flexDirection: 'row', gap: space.md }}>
-            <Button kind="tonal" icon="qr-code-outline" label="Scan QR" style={{ flex: 1 }} onPress={() => { setQrError(''); setScanning(true); }} />
-            <Button kind="tonal" icon="image-outline" label="Upload QR" style={{ flex: 1 }} onPress={uploadQr} />
-          </View>
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              <T v="caption" color={colors.textSecondary}>or use a QR code</T>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+            </View>
+            <View style={{ flexDirection: 'row', gap: space.sm }}>
+              <Button kind="tonal" icon="scan-outline" label="Scan" style={{ flex: 1 }} onPress={() => { setQrError(''); setScanning(true); }} />
+              <Button kind="tonal" icon="image-outline" label="From photo" style={{ flex: 1 }} onPress={uploadQr} />
+            </View>
+          </>
         )}
         {qrError ? <Badge tone="error" label={qrError} /> : null}
       </Card>
