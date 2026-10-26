@@ -1,7 +1,10 @@
 // Groups: find shared free time. Only busy blocks (day + start + end) leave the phone.
+import * as ImagePicker from 'expo-image-picker';
+import { QrScanner } from '../../components/qr-scanner';
+import { APP_URL, codeFromQr, readQrFromImage, shareApp } from '../../lib/qr';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Screen, T } from '../../components/ui';
 import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
@@ -19,6 +22,24 @@ export default function Groups() {
   const [day, setDay] = useState<Weekday>(new Date().getDay() as Weekday);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [qrError, setQrError] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
+  function joinFromQr(text: string | null) {
+    const c = text ? codeFromQr(text) : null;
+    if (!c) { setQrError(text ? 'That QR code is not a ScheduLens group code.' : 'No QR code found in that picture. Try a clearer one.'); return; }
+    setQrError('');
+    router.push({ pathname: '/join', params: { code: c } });
+  }
+  async function uploadQr() {
+    setQrError('');
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+    if (r.canceled || !r.assets?.[0]) return;
+    try { joinFromQr(await readQrFromImage(r.assets[0].uri)); } catch (e) { setQrError(e instanceof Error ? e.message : 'Could not read that picture.'); }
+  }
+  async function inviteFriends() {
+    try { setInviteNote((await shareApp()) === 'copied' ? 'Link copied. Paste it in a chat.' : ''); } catch { setInviteNote('Share this link: ' + APP_URL); }
+  }
   const [busy, setBusy] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [plan, setPlan] = useState<{ title: string; day: string; start: string; end: string; place: string } | null>(null);
@@ -146,7 +167,21 @@ export default function Groups() {
         <T v="cardTitle">Join with a code</T>
         <Field label="Invite code" value={code} onChangeText={setCode} autoCapitalize="characters" />
         <Button kind="secondary" label="Join" loading={busy} disabled={!code.trim()} onPress={() => { router.push({ pathname: '/join', params: { code: code.trim().toUpperCase() } }); setCode(''); }} />
+        {Platform.OS === 'web' && (
+          <View style={{ flexDirection: 'row', gap: space.md }}>
+            <Button kind="tonal" icon="qr-code-outline" label="Scan QR" style={{ flex: 1 }} onPress={() => { setQrError(''); setScanning(true); }} />
+            <Button kind="tonal" icon="image-outline" label="Upload QR" style={{ flex: 1 }} onPress={uploadQr} />
+          </View>
+        )}
+        {qrError ? <Badge tone="error" label={qrError} /> : null}
       </Card>
+      <Card style={{ gap: space.sm, alignItems: 'center' }}>
+        <T v="cardTitle" center>Invite friends to ScheduLens 💌</T>
+        <T v="caption" color={colors.textSecondary} center>Send them the app link so they can join your groups too.</T>
+        <Button icon="share-social-outline" label="Invite friends" onPress={inviteFriends} />
+        {inviteNote ? <Badge tone="success" label={inviteNote} /> : null}
+      </Card>
+      <QrScanner open={scanning} onClose={() => setScanning(false)} onResult={(t) => { setScanning(false); joinFromQr(t); }} />
     </Screen>
   );
 }

@@ -5,12 +5,13 @@ import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Badge, Button, Card, Empty, Icon, Screen, T } from '../components/ui';
+import { joinLink } from '../lib/qr';
 import { colors, space } from '../theme/tokens';
 
 export default function Invite() {
   const { name, code, expiresAt } = useLocalSearchParams<{ name: string; code: string; expiresAt: string }>();
   const [copied, setCopied] = useState(false);
-  const message = `Join my ScheduLens group "${name}" with code ${code}`;
+  const message = `Join my ScheduLens group "${name}" with code ${code}: ${joinLink(code ?? '')}`;
   async function copy() {
     await Clipboard.setStringAsync(code ?? '');
     setCopied(true);
@@ -29,7 +30,8 @@ export default function Invite() {
       <T v="section" center>{name}</T>
       <T v="caption" center color={colors.textSecondary}>Code expires {expiresAt ? new Date(expiresAt).toLocaleDateString() : ''}</T>
       <Card style={{ alignItems: 'center', gap: space.md }}>
-        <QRCode value={code ?? ''} size={160} color={colors.text} />
+        <QRCode value={joinLink(code)} size={180} color={colors.text} />
+        <T v="caption" color={colors.textSecondary} center>Friends can scan this with their phone camera, or in Groups → Scan QR.</T>
         <T v="welcome">{code}</T>
         <View style={{ flexDirection: 'row', gap: space.md }}>
           <Button kind="secondary" label="Copy" icon="copy-outline" onPress={copy} />

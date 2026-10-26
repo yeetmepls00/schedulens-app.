@@ -9,6 +9,7 @@ import { deleteAllData, exportBackup, importBackup, getAlerts, getRules, getSett
 import { deleteAccount, logOut, sendPasswordReset } from '../lib/auth';
 import { confirm } from '../lib/confirm';
 import { sb } from '../lib/groups';
+import { APP_URL, shareApp } from '../lib/qr';
 import type { IssueRules } from '../lib/conflicts';
 import { colors, radius, space } from '../theme/tokens';
 
@@ -236,6 +237,10 @@ export default function Settings() {
       </Section>
 
       <Section title="About">
+        <RowBase icon="share-social-outline" label="Invite friends to ScheduLens" sub="Share the app link" onPress={async () => {
+          try { if ((await shareApp()) === 'copied') say('success', 'Link copied', 'Paste it in a chat to invite your friends.'); }
+          catch { say('success', 'Share this link', APP_URL); }
+        }} />
         <RowBase icon="help-circle-outline" label="Help & user manual" onPress={() => router.push('/help')} />
         <RowBase icon="information-circle-outline" label="Version" right={<T v="caption" color={colors.textSecondary}>1.0.0</T>} last />
       </Section>
