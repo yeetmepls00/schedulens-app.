@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { goBack } from '../lib/nav';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, space, TOUCH, type } from '../theme/tokens';
 
@@ -36,7 +36,7 @@ export function Screen({ title, back, right, children, footer, scroll = true, pl
             <View style={[s.headerSide, { alignItems: 'flex-end' }]}>{right}</View>
           </View>
         )}
-        {scroll ? <ScrollView keyboardShouldPersistTaps="handled">{body}</ScrollView> : body}
+        {scroll ? <PullScroll>{body}</PullScroll> : body}
         {footer && <View style={s.footer}><View style={{ flex: 1 }}>{footer}</View></View>}
       </SafeAreaView>
     </LinearGradient>
@@ -206,3 +206,29 @@ export const s = StyleSheet.create({
   chip: { minHeight: 40, minWidth: 44, paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.header, alignItems: 'center', justifyContent: 'center' },
 });
+
+/** ScrollView with pull-down-to-refresh on web: pulling down at the top reloads the app.
+ *  The installed app (home screen) has no browser pull-to-refresh, so we add our own. */
+function PullScroll({ children }: { children: ReactNode }) {
+  const top = useRef(0);
+  const startY = useRef<number | null>(null);
+  const [pull, setPull] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const READY = 70;
+  if (Platform.OS !== 'web') return <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>;
+  return (
+    <ScrollView keyboardShouldPersistTaps="handled" scrollEventThrottle={16}
+      onScroll={(e) => { top.current = e.nativeEvent.contentOffset.y; }}
+      onTouchStart={(e) => { startY.current = top.current <= 0 ? e.nativeEvent.touches[0]?.pageY ?? null : null; }}
+      onTouchMove={(e) => { if (startY.current == null) return; const dy = (e.nativeEvent.touches[0]?.pageY ?? 0) - startY.current; setPull(dy > 0 && top.current <= 0 ? Math.min(dy / 2, 100) : 0); }}
+      onTouchEnd={() => { startY.current = null; if (pull >= READY) { setLoading(true); setTimeout(() => window.location.reload(), 150); } else setPull(0); }}>
+      {(pull > 0 || loading) && (
+        <View style={{ height: loading ? READY : pull, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8 }} accessibilityLiveRegion="polite">
+          {loading ? <ActivityIndicator color={colors.strawberryStrong} />
+            : <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>{pull >= READY ? 'Release to refresh' : 'Pull down to refresh'}</Text>}
+        </View>
+      )}
+      {children}
+    </ScrollView>
+  );
+}
