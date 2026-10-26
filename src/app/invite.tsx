@@ -1,10 +1,10 @@
 // 4.2 Share Invite. Shows the group's code as text and a QR code.
 import * as Clipboard from 'expo-clipboard';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { Badge, Button, Card, Icon, Screen, T } from '../components/ui';
+import { Badge, Button, Card, Empty, Icon, Screen, T } from '../components/ui';
 import { colors, space } from '../theme/tokens';
 
 export default function Invite() {
@@ -15,6 +15,15 @@ export default function Invite() {
     await Clipboard.setStringAsync(code ?? '');
     setCopied(true);
   }
+  // Opened without a group (e.g. an old link): nothing to show, so offer a way back.
+  if (!code) {
+    return (
+      <Screen title="Invite Members" back>
+        <Empty icon="people-outline" title="No group picked" message="Open a group in Groups, then tap Invite to get its code." action="Go to Groups" onAction={() => router.replace('/groups')} />
+      </Screen>
+    );
+  }
+  const canShare = Platform.OS !== 'web' || typeof navigator.share === 'function';
   return (
     <Screen title="Invite Members" back>
       <T v="section" center>{name}</T>
@@ -24,7 +33,7 @@ export default function Invite() {
         <T v="welcome">{code}</T>
         <View style={{ flexDirection: 'row', gap: space.md }}>
           <Button kind="secondary" label="Copy" icon="copy-outline" onPress={copy} />
-          {Platform.OS !== 'web' && <Button kind="tonal" label="Share" icon="share-social-outline" onPress={() => Share.share({ message })} />}
+          {canShare && <Button kind="tonal" label="Share" icon="share-social-outline" onPress={() => (Platform.OS === 'web' ? navigator.share({ text: message }).catch(() => {}) : Share.share({ message }))} />}
         </View>
         {copied && <Badge tone="success" label="Code copied." />}
       </Card>
