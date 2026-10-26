@@ -3,9 +3,10 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
-import { Button, Chip, Empty, Screen, Segmented, T } from '../../components/ui';
+import { Banner, Button, Chip, Empty, Screen, Segmented, T } from '../../components/ui';
 import { getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
+import { nextEvent } from '../../lib/next';
 import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
 import type { ScheduleEvent, Weekday } from '../../lib/types';
 import { colors, radius, space } from '../../theme/tokens';
@@ -34,6 +35,7 @@ export default function Calendar() {
           </View>
           <T v="cardTitle">{DAY_NAMES[day]} · {events.filter((e) => e.weekday === day).length} events</T>
           {events.filter((e) => e.weekday === day).map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)}
+          <FreeDay events={events} day={day} label={DAY_NAMES[day]} issueFor={issueFor} />
         </>
       ) : view === 'week' ? (
         <WeekGrid events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} />
@@ -177,6 +179,24 @@ function MonthView({ events, conflictIds, issueFor }: { events: ScheduleEvent[];
         <Button kind="text" icon="add" label="Add Event" onPress={() => router.push('/event/new')} />
       </View>
       {dayEvents(picked).map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)}
+      <FreeDay events={events} day={picked.getDay() as Weekday} label={picked.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} issueFor={issueFor} />
+    </>
+  );
+}
+
+/** When a day has no events, says so and shows the closest event after it. */
+function FreeDay({ events, day, label, issueFor }: { events: ScheduleEvent[]; day: Weekday; label: string; issueFor: ReturnType<typeof useSchedule>['issueFor'] }) {
+  if (events.some((e) => e.weekday === day)) return null;
+  const next = nextEvent(events, ((day + 1) % 7) as Weekday);
+  return (
+    <>
+      <Banner tone="matcha" title={`You're free on ${label}`} message="Nothing scheduled this day." />
+      {next && (
+        <>
+          <T v="captionStrong" color={colors.textSecondary}>NEXT UP · {DAY_NAMES[next.event.weekday].toUpperCase()}</T>
+          <EventCard event={next.event} issue={issueFor(next.event.id)} onPress={() => router.push(`/event/${next.event.id}`)} />
+        </>
+      )}
     </>
   );
 }

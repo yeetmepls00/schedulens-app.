@@ -7,6 +7,7 @@ import { EventCard } from '../../components/EventCard';
 import { Banner, Empty, Icon, Screen, T, type IconName } from '../../components/ui';
 import { getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
+import { nextEvent, whenLabel } from '../../lib/next';
 import { DAY_NAMES } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
 import { colors, radius, space } from '../../theme/tokens';
@@ -18,6 +19,7 @@ export default function Home() {
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const todays = events.filter((e) => e.weekday === today);
   const upcoming = todays.filter((e) => e.endMin > nowMin);
+  const next = upcoming.length === 0 ? nextEvent(events, ((today + 1) % 7) as Weekday) : null;
   const todaysIssues = issues.filter((i) => i.weekday === today);
   const name = getSetting('displayName', '');
   const hello = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening';
@@ -58,7 +60,15 @@ export default function Home() {
       {events.length === 0 ? (
         <Empty icon="calendar-outline" title="No schedule yet" message="Scan or upload your class schedule to get started." action="Add a schedule" onAction={() => router.push('/scan')} />
       ) : upcoming.length === 0 ? (
-        <Banner tone="matcha" title="You're free for the rest of today" message={todays.length ? `${todays.length} events earlier today.` : 'Nothing scheduled today.'} />
+        <>
+          <Banner tone="matcha" title={todays.length ? "You're free for the rest of today" : "You're free today"} message={todays.length ? `${todays.length} ${todays.length === 1 ? 'event' : 'events'} earlier today.` : 'Nothing scheduled today. Enjoy the break.'} />
+          {next && (
+            <>
+              <T v="captionStrong" color={colors.textSecondary}>NEXT UP · {whenLabel(next.daysAhead + 1, next.event.weekday).toUpperCase()}</T>
+              <EventCard event={next.event} issue={issueFor(next.event.id)} onPress={() => router.push(`/event/${next.event.id}`)} />
+            </>
+          )}
+        </>
       ) : (
         upcoming.map((e) => <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />)
       )}
