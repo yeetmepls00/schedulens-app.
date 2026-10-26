@@ -215,3 +215,6 @@ export function setSetting(key: string, value: unknown) {
   changed();
 }
 export const getRules = (): IssueRules => getSetting('rules', DEFAULT_RULES);
+/** Which kinds of warnings the person wants to see (Settings > Alerts). */
+export type AlertKinds = { overlap: boolean; travel: boolean; workload: boolean };
+export const getAlerts = (): AlertKinds => ({ overlap: true, travel: true, workload: true, ...getSetting<Partial<AlertKinds>>('alerts', {}) });

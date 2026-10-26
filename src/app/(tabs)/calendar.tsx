@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
 import { Button, Chip, Empty, Screen, Segmented, T } from '../../components/ui';
+import { getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
 import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
 import type { ScheduleEvent, Weekday } from '../../lib/types';
@@ -16,7 +17,7 @@ const END = 21 * 60;
 
 export default function Calendar() {
   const { events, issueFor, issues } = useSchedule();
-  const [view, setView] = useState<View_>('day');
+  const [view, setView] = useState<View_>(() => getSetting<View_>('defaultView', 'day'));
   const [day, setDay] = useState<Weekday>(new Date().getDay() as Weekday);
   const add = <Button label="Add" kind="text" icon="add" onPress={() => router.push('/event/new')} />;
 
