@@ -81,5 +81,16 @@
       (function(){var m=['Sharpening the pencils…','Stitching your week together…','Finding your free time…','Watering the strawberries…'],i=0;
       var t=setInterval(function(){var e=document.getElementById('bootmsg');if(!e||document.getElementById('root').childElementCount){clearInterval(t);return}i=(i+1)%m.length;e.textContent=m[i]},2800)})();
     </script>
+    <!-- Tells people when a newer version is live, so an open or installed app doesn't stay on the old one. -->
+    <div id="upd" role="button" tabindex="0" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:20;background:#B8324B;color:#fff;font:700 15px Quicksand,system-ui,sans-serif;padding:12px 20px;border-radius:999px;box-shadow:0 8px 24px rgba(184,50,75,.35);cursor:pointer">✨ New version ready · Tap to update</div>
+    <script>
+      (function(){
+        var mine=function(){var s=document.querySelector('script[src*="/_expo/static/js/web/entry-"]');return s&&s.getAttribute('src')};
+        var cur=mine(),b=document.getElementById('upd');
+        b.onclick=function(){location.reload()};
+        function check(){fetch('/',{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/\/_expo\/static\/js\/web\/entry-[^"]+/);if(cur&&m&&m[0]!==cur)b.style.display='block'}).catch(function(){})}
+        setInterval(check,60000);document.addEventListener('visibilitychange',function(){if(!document.hidden)check()});setTimeout(check,5000);
+      })();
+    </script>
 </body>
 </html>
