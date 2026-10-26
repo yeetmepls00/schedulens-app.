@@ -7,11 +7,14 @@ import { Banner, Button, Chip, Empty, Screen, Segmented, T } from '../../compone
 import { getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
 import { nextEvent } from '../../lib/next';
+import { colorFor, DEFAULT_STYLE, textOn, type TimetableStyle } from '../../lib/timetable';
 import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
 import type { ScheduleEvent, Weekday } from '../../lib/types';
 import { colors, radius, space } from '../../theme/tokens';
 
 type View_ = 'day' | 'week' | 'month' | 'list' | 'heatmap';
+/** Subject colors from the Timetable editor, so every view matches. */
+const subjectColor = (e: ScheduleEvent, all: ScheduleEvent[]) => colorFor(e, all, { ...DEFAULT_STYLE, ...getSetting<Partial<TimetableStyle>>('timetableStyle', {}) });
 const WEEK: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 const START = 7 * 60;
 const END = 21 * 60;
@@ -75,10 +78,11 @@ function WeekGrid({ events, conflictIds }: { events: ScheduleEvent[]; conflictId
           <View key={d} style={{ flex: 1, borderLeftWidth: 1, borderColor: colors.border }}>
             {events.filter((e) => e.weekday === d).map((e) => {
               const bad = conflictIds.has(e.id);
+              const bg = subjectColor(e, events);
               return (
                 <Pressable key={e.id} onPress={() => router.push(`/event/${e.id}`)} accessibilityLabel={`${e.title} ${formatTime(e.startMin)}`}
-                  style={{ position: 'absolute', left: 2, right: 2, top: ((Math.max(e.startMin, START) - START) / 60) * hourH, height: Math.max(18, ((Math.min(e.endMin, END) - Math.max(e.startMin, START)) / 60) * hourH - 2), backgroundColor: bad ? colors.errorSurface : colors.strawberrySoft, borderColor: bad ? colors.error : colors.strawberry, borderWidth: 1, borderRadius: 6, padding: 2, overflow: 'hidden' }}>
-                  <T v="caption" style={{ fontSize: 10, fontWeight: '700' }} lines={3}>{e.title}</T>
+                  style={{ position: 'absolute', left: 2, right: 2, top: ((Math.max(e.startMin, START) - START) / 60) * hourH, height: Math.max(18, ((Math.min(e.endMin, END) - Math.max(e.startMin, START)) / 60) * hourH - 2), backgroundColor: bg, borderColor: bad ? colors.error : bg, borderWidth: bad ? 2 : 1, borderRadius: 6, padding: 2, overflow: 'hidden' }}>
+                  <T v="caption" color={textOn(bg)} style={{ fontSize: 10, fontWeight: '700' }} lines={3}>{e.title}</T>
                 </Pressable>
               );
             })}
@@ -88,6 +92,9 @@ function WeekGrid({ events, conflictIds }: { events: ScheduleEvent[]; conflictId
     </View>
   );
 }
+
+/** Clearly different steps from free (white) to fully booked (dark red). */
+const heat = (m: number) => (m === 0 ? colors.card : m <= 30 ? '#FFE9A8' : m <= 60 ? '#FDB863' : m <= 90 ? '#E8603C' : '#A3172F');
 
 /** Hours scheduled per day and time slot. Darker = busier. */
 function Heatmap({ events }: { events: ScheduleEvent[] }) {
@@ -108,13 +115,15 @@ function Heatmap({ events }: { events: ScheduleEvent[] }) {
             {WEEK.map((d) => {
               const m = busy(d, from);
               return <View key={d} accessibilityLabel={`${DAY_NAMES[d]} ${formatTime(from)}: ${m} minutes busy`}
-                style={{ flex: 1, height: 26, borderRadius: 6, borderWidth: 1, borderColor: colors.border, backgroundColor: m === 0 ? colors.card : colors.strawberry, opacity: m === 0 ? 1 : 0.3 + 0.7 * (m / 120) }} />;
+                style={{ flex: 1, height: 26, borderRadius: 6, borderWidth: 1, borderColor: colors.border, backgroundColor: heat(m), alignItems: 'center', justifyContent: 'center' }}>
+                {m > 0 && <T v="caption" color={m > 60 ? '#FFFFFF' : '#3A2A2C'} style={{ fontSize: 9, fontWeight: '700' }}>{m >= 60 ? `${Math.round(m / 6) / 10}h` : `${m}m`}</T>}
+              </View>;
             })}
           </View>
         ))}
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4 }}>
           <T v="caption" color={colors.textSecondary}>Free</T>
-          {[0, 0.4, 0.7, 1].map((o) => <View key={o} style={{ width: 18, height: 12, borderRadius: 3, backgroundColor: o ? colors.strawberry : colors.card, opacity: o || 1, borderWidth: 1, borderColor: colors.border }} />)}
+          {[0, 30, 60, 90, 120].map((m) => <View key={m} style={{ width: 18, height: 12, borderRadius: 3, backgroundColor: heat(m), borderWidth: 1, borderColor: colors.border }} />)}
           <T v="caption" color={colors.textSecondary}>Busy</T>
         </View>
       </View>
@@ -163,14 +172,14 @@ function MonthView({ events, conflictIds, issueFor }: { events: ScheduleEvent[];
                 style={{ width: `${100 / 7}%`, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: on ? colors.strawberryStrong : 'transparent' }}>
                 <T v={same(d, today) ? 'captionStrong' : 'caption'} color={on ? colors.onAccent : inMonth ? colors.text : colors.disabled}>{d.getDate()}</T>
                 <View style={{ flexDirection: 'row', gap: 2, height: 6, marginTop: 2 }}>
-                  {inMonth && evs.slice(0, 3).map((e) => <View key={e.id} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: on ? colors.onAccent : conflictIds.has(e.id) ? colors.error : colors.matcha }} />)}
+                  {inMonth && evs.slice(0, 3).map((e) => <View key={e.id} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: conflictIds.has(e.id) ? colors.error : subjectColor(e, events), borderWidth: on ? 1 : 0, borderColor: colors.onAccent }} />)}
                 </View>
               </Pressable>
             );
           })}
         </View>
         <View style={{ flexDirection: 'row', gap: space.md }}>
-          <T v="caption" color={colors.textSecondary}>● Has events</T>
+          <T v="caption" color={colors.textSecondary}>● Dot color = subject</T>
           <T v="caption" color={colors.error}>● Conflict</T>
         </View>
       </View>
