@@ -1,6 +1,6 @@
 // 4.5 Profile & Settings: account, alerts, calendar, data, and about. Changes save as you make them.
-import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { router, useNavigation } from 'expo-router';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, Switch, View } from 'react-native';
 import { Avatar, getAvatar, pickAvatar, removeAvatar } from '../components/avatar';
 import { InstallApp } from '../components/install-app';
@@ -69,8 +69,24 @@ export default function Settings() {
 
   useEffect(() => { sb().auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? '')).catch(() => {}); }, []);
 
-  const saveAlerts = (a: AlertKinds) => { setAlertsState(a); setSetting('alerts', a); };
-  const saveRules = (r: IssueRules) => { setRulesState(r); setSetting('rules', r); };
+  // Alert and calendar choices are drafts until the person taps Save changes.
+  const saveAlerts = (a: AlertKinds) => setAlertsState(a);
+  const saveRules = (r: IssueRules) => setRulesState(r);
+  const savedView = getSetting<string>('defaultView', 'day');
+  const dirty = JSON.stringify(alerts) !== JSON.stringify(getAlerts()) || JSON.stringify(rules) !== JSON.stringify(getRules()) || view !== savedView;
+  function commitDraft() { setSetting('alerts', alerts); setSetting('rules', rules); setSetting('defaultView', view); say('success', 'Settings saved', 'Your changes are now in use.'); }
+  function discardDraft() { setAlertsState(getAlerts()); setRulesState(getRules()); setView(savedView); }
+  const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
+  const draftRef = useRef(commitDraft); draftRef.current = commitDraft;
+  const navigation = useNavigation();
+  useEffect(() => navigation.addListener('beforeRemove', (e) => {
+    if (!dirtyRef.current) return;
+    e.preventDefault();
+    confirm('Save your changes?', 'You changed some settings but did not save them.', [
+      { text: 'Save and leave', onPress: () => { draftRef.current(); navigation.dispatch(e.data.action); } },
+      { text: 'Leave without saving', destructive: true, onPress: () => navigation.dispatch(e.data.action) },
+    ]);
+  }), [navigation]);
   const say = (tone: 'success' | 'error', title: string, message: string) => setNotice({ tone, title, message });
 
   function saveName() { if (!name.trim()) return; setSetting('displayName', name.trim()); setEditing(false); say('success', 'Saved', 'Your name was updated.'); }
@@ -140,7 +156,11 @@ export default function Settings() {
   }
 
   return (
-    <Screen title="Settings" back>
+    <Screen title="Settings" back footer={dirty ? <View style={{ flexDirection: 'row', gap: space.md }}>
+      <Button kind="secondary" label="Cancel" style={{ flex: 1 }} onPress={discardDraft} />
+      <Button label="Save changes" style={{ flex: 1 }} onPress={commitDraft} />
+    </View> : undefined}>
+      {dirty && <Banner tone="warning" title="Unsaved changes" message="Tap Save changes to keep them, or Cancel to undo." />}
       {notice && <Banner tone={notice.tone} title={notice.title} message={notice.message} />}
 
       <Card style={{ gap: space.md }}>
@@ -190,7 +210,7 @@ export default function Settings() {
         <View style={{ paddingVertical: space.md, gap: space.sm, borderBottomWidth: 1, borderColor: colors.border }}>
           <T v="captionStrong">Open the calendar in</T>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {VIEWS.map(([id, label]) => <Chip key={id} label={label} on={view === id} onPress={() => { setView(id); setSetting('defaultView', id); }} />)}
+            {VIEWS.map(([id, label]) => <Chip key={id} label={label} on={view === id} onPress={() => setView(id)} />)}
           </View>
         </View>
         <RowBase icon="color-palette-outline" label="Timetable design" sub="Presets, colors, and layout" onPress={() => router.push('/timetable')} />
