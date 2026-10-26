@@ -3,7 +3,8 @@
 // change made here. The design is stored apart from the schedule, so changing
 // it never changes class times or details.
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { goBack } from '../lib/nav';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Timetable } from '../components/Timetable';
 import { Badge, Banner, Button, Card, Checkbox, Chip, Field, Icon, Screen, Segmented, T } from '../components/ui';
@@ -27,7 +28,7 @@ const loadStyle = (): TimetableStyle => ({ ...DEFAULT_STYLE, ...getSetting<Parti
 
 export default function TimetableEditor() {
   const saved = useEvents();
-  const savedStyle = useMemo(loadStyle, []);
+  const [savedStyle, setSavedStyle] = useState(loadStyle);
   const [h, setH] = useState(() => startHistory({ events: saved, style: savedStyle }));
   const [tab, setTab] = useState<Tab>('design');
   const [previewId, setPreviewId] = useState<PresetId | null>(null);
@@ -49,13 +50,16 @@ export default function TimetableEditor() {
   function save() {
     saveEditorChanges(changed, deletedIds);
     setSetting('timetableStyle', style);
+    setSavedStyle(style);
     setH(startHistory({ events, style }));
     setNotice('Saved. Your timetable will open like this next time.');
   }
+  // Works even when the editor was opened directly (no page to go back to).
+  const exit = () => goBack('/calendar');
   function leave() {
-    if (!dirty) return router.back();
+    if (!dirty) return exit();
     confirm('Leave without saving?', 'Your unsaved changes to the timetable will be lost.', [
-      { text: 'Discard changes', destructive: true, onPress: () => router.back() },
+      { text: 'Discard changes', destructive: true, onPress: exit },
     ]);
   }
 
@@ -67,12 +71,16 @@ export default function TimetableEditor() {
   );
 
   return (
-    <Screen title="Timetable" right={headerRight}
+    <Screen title="Timetable" back right={headerRight}
       footer={
-        <View style={{ flexDirection: 'row', gap: space.md }}>
-          <Button kind="secondary" label={dirty ? 'Cancel' : 'Close'} onPress={leave} style={{ flex: 1 }} />
-          <Button label={dirty ? 'Save changes' : 'Saved'} onPress={save} disabled={!dirty} style={{ flex: 1 }} />
-        </View>
+        dirty ? (
+          <View style={{ flexDirection: 'row', gap: space.md }}>
+            <Button kind="secondary" label="Cancel" onPress={leave} style={{ flex: 1 }} />
+            <Button label="Save changes" onPress={save} style={{ flex: 1 }} />
+          </View>
+        ) : (
+          <Button label="Done" onPress={exit} style={{ alignSelf: 'stretch' }} />
+        )
       }>
       {notice && <Banner tone="success" title="Timetable saved" message={notice} />}
       {dirty && !notice && <Badge tone="warning" label="Preview: changes are not saved yet" />}

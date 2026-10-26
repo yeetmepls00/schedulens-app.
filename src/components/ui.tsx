@@ -1,5 +1,6 @@
 // Reusable building blocks. Each one matches a component in the Figma file.
 import { Ionicons } from '@expo/vector-icons';
+import { goBack } from '../lib/nav';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState, type ComponentProps, type ReactNode } from 'react';
@@ -26,7 +27,7 @@ export function Screen({ title, back, right, children, footer, scroll = true, pl
           <View style={[s.header, plain && { backgroundColor: 'transparent' }]}>
             <View style={s.headerSide}>
               {back && (
-                <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.iconBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => goBack()} style={s.iconBtn}>
                   <Icon name="arrow-back" />
                 </Pressable>
               )}

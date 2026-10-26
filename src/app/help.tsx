@@ -1,6 +1,7 @@
 // Help & user manual. Every button name here matches the app; update this page
 // when a feature changes. Opened from Welcome and from Profile & Settings.
 import { router } from 'expo-router';
+import { goBack } from '../lib/nav';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card, Icon, Screen, T } from '../components/ui';
@@ -131,7 +132,7 @@ export default function Help() {
         );
       })}
       <T v="caption" color={colors.textSecondary} center>Still stuck? Tell your instructor or the ScheduLens team what you tried and what the screen said.</T>
-      <Pressable onPress={() => router.back()}><T v="captionStrong" center color={colors.strawberryStrong}>Back</T></Pressable>
+      <Pressable onPress={() => goBack('/')}><T v="captionStrong" center color={colors.strawberryStrong}>Back</T></Pressable>
     </Screen>
   );
 }

@@ -1,5 +1,6 @@
 // Add or edit one event. "new" as the id means a new event.
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '../../lib/nav';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { confirm } from '../../lib/confirm';
@@ -42,11 +43,11 @@ export default function EventForm() {
     setTried(true);
     if (!candidate) return;
     saveEvent({ ...candidate, id: old?.id ?? newId() });
-    router.back();
+    goBack('/calendar');
   }
   function remove() {
     confirm('Delete this event?', 'This cannot be undone.', [
-      { text: 'Delete', destructive: true, onPress: () => { deleteEvent(old!.id); router.back(); } },
+      { text: 'Delete', destructive: true, onPress: () => { deleteEvent(old!.id); goBack('/calendar'); } },
     ]);
   }
   const err = (k: string) => (tried ? errors[k] : undefined);

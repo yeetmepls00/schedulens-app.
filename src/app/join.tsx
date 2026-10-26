@@ -1,5 +1,6 @@
 // 4.3 Join Group. Shows the group and exactly what you will share before you join.
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '../lib/nav';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Banner, Button, Card, Icon, Screen, T } from '../components/ui';
@@ -33,7 +34,7 @@ export default function Join() {
   return (
     <Screen title="Join Group" back footer={
       <View style={{ flexDirection: 'row', gap: space.md }}>
-        <Button kind="secondary" label="Decline" style={{ flex: 1 }} onPress={() => router.back()} />
+        <Button kind="secondary" label="Decline" style={{ flex: 1 }} onPress={() => goBack('/groups')} />
         <Button label="Join Group" style={{ flex: 1 }} loading={busy} disabled={!info} onPress={join} />
       </View>}>
       {error && <Banner tone="error" title="Can’t join" message={error} />}

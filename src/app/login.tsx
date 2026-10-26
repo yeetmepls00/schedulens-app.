@@ -26,7 +26,7 @@ export default function LogIn() {
     finally { setBusy(false); }
   }
   return (
-    <AuthShell title="Welcome back" subtitle="Log in to see your timetable." back={router.canGoBack()}
+    <AuthShell title="Welcome back" subtitle="Log in to see your timetable."
       below={(
         <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center', justifyContent: 'center' }}>
           <T color={colors.textSecondary}>New to ScheduLens?</T>
