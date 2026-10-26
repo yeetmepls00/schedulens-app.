@@ -19,5 +19,18 @@
       "source": "/((?!_expo/|assets/|icons/|favicon\\.ico|metadata\\.json|manifest\\.webmanifest|sw\\.js).*)",
       "destination": "/index.html"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "schedulens-app.vercel.app"
+        }
+      ],
+      "destination": "https://schedulens.vercel.app/$1",
+      "permanent": false
+    }
   ]
 }
