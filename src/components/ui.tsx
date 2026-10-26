@@ -1,7 +1,6 @@
 // Reusable building blocks. Each one matches a component in the Figma file.
 import { Ionicons } from '@expo/vector-icons';
 import { goBack } from '../lib/nav';
-import { Doodle, Squiggle } from './doodles';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
@@ -75,13 +74,7 @@ export const Card = ({ children, style, tint }: { children: ReactNode; style?: V
 
 export const T = ({ children, v = 'body', color = colors.text, style, center, lines }: {
   children: ReactNode; v?: keyof typeof type; color?: string; style?: object; center?: boolean; lines?: number;
-}) => v === 'section' ? (
-  // Section headings get a hand-drawn squiggle underneath.
-  <View style={[{ gap: 0 }, center && { alignItems: 'center' }]}>
-    <Text numberOfLines={lines} style={[type[v], { color }, center && { textAlign: 'center' }, style]}>{children}</Text>
-    <Squiggle width={70} />
-  </View>
-) : (
+}) => (
   <Text numberOfLines={lines} style={[type[v], { color }, center && { textAlign: 'center' }, style]}>{children}</Text>
 );
 
@@ -191,11 +184,7 @@ export const Checkbox = ({ label, on, onPress }: { label: string; on: boolean; o
 
 export const Empty = ({ icon, title, message, action, onAction }: { icon: IconName; title: string; message: string; action?: string; onAction?: () => void }) => (
   <Card style={{ alignItems: 'center', gap: space.sm, paddingVertical: space.xxl }}>
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
-      <Doodle name="star" size={20} fill="#FFE9A8" />
-      <Doodle name="cloud" size={72} fill="#FFE3E8" />
-      <Doodle name="heart" size={20} fill="#FFC9D3" />
-    </View>
+    <View style={s.emptyIcon}><Icon name={icon} size={32} color={colors.strawberry} /></View>
     <T v="cardTitle" center>{title}</T>
     <T color={colors.textSecondary} center>{message}</T>
     {action && <Button label={action} onPress={onAction} kind="tonal" style={{ marginTop: space.sm }} />}

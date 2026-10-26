@@ -6,7 +6,6 @@ import { EventCard } from '../../components/EventCard';
 import { Banner, Button, Chip, Empty, Screen, Segmented, T } from '../../components/ui';
 import { getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
-import { Doodle } from '../../components/doodles';
 import { nextEvent } from '../../lib/next';
 import { colorFor, DEFAULT_STYLE, textOn, type TimetableStyle } from '../../lib/timetable';
 import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
@@ -57,7 +56,7 @@ export default function Calendar() {
       {events.length > 0 && (
         <Pressable onPress={() => router.push('/timetable')} accessibilityRole="button" accessibilityLabel="Open the timetable editor"
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.card, backgroundColor: '#FFF4E8', borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#F4B860', marginTop: space.sm }}>
-          <Doodle name="pencil" size={40} fill="#FFE8BF" />
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFE3E8', alignItems: 'center', justifyContent: 'center' }}><T style={{ fontSize: 24 }}>🖍️</T></View>
           <View style={{ flex: 1 }}>
             <T v="cardTitle">Design your timetable</T>
             <T v="caption" color={colors.textSecondary}>Pick colors and a theme for your week.</T>
