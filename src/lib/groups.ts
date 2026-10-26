@@ -134,3 +134,32 @@ export function nextDateFor(weekday: number) {
   d.setDate(d.getDate() + ((weekday - d.getDay() + 7) % 7));
   return toIsoDate(d);
 }
+
+/** The group's optional description, and whether you created the group (only the creator can edit it). */
+export async function loadGroupInfo(groupId: string): Promise<{ description: string; isOwner: boolean }> {
+  const [{ data, error }, { data: me }] = await Promise.all([
+    sb().from('groups').select('description, owner').eq('id', groupId).single(),
+    sb().auth.getUser(),
+  ]);
+  if (error) throw error;
+  return { description: data?.description ?? '', isOwner: !!me.user && data?.owner === me.user.id };
+}
+
+export async function setGroupDescription(groupId: string, description: string) {
+  const { error } = await sb().from('groups').update({ description: description.trim() || null }).eq('id', groupId);
+  if (error) throw error;
+}
+
+export interface JoinNotice { groupId: string; groupName: string; name: string; at: string }
+
+/** People who joined your groups after `since` (not counting you). */
+export async function recentJoins(groups: Group[], since: string): Promise<JoinNotice[]> {
+  if (!groups.length) return [];
+  const { data: me } = await sb().auth.getUser();
+  const { data, error } = await sb().from('group_members').select('group_id, user_id, username, joined_at')
+    .in('group_id', groups.map((g) => g.id)).gt('joined_at', since).order('joined_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).filter((r) => r.user_id !== me.user?.id).map((r) => ({
+    groupId: r.group_id, groupName: groups.find((g) => g.id === r.group_id)?.name ?? 'your group', name: r.username, at: r.joined_at,
+  }));
+}

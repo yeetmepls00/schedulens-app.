@@ -4,7 +4,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { Banner, Button, Card, Screen, T } from '../../components/ui';
 import { setDraft } from '../../data/draft';
 import { checkScheduleFile, MAX_FILE_MB, type FileKind } from '../../lib/fileCheck';
@@ -71,6 +71,9 @@ export default function Scan() {
         <Button label="Enter manually" icon="create" kind="tonal" onPress={() => router.push('/event/new')} disabled={busy} />
       </Card>
       <T v="caption" color={colors.textSecondary}>Supported: PNG, JPG and PDF, up to {MAX_FILE_MB} MB. A flat, well-lit image with the whole table visible gives the best results. You will check every value before anything is saved.</T>
+      <Pressable onPress={() => router.push('/groups')} accessibilityRole="link" style={{ alignSelf: 'center', paddingVertical: 8 }}>
+        <T v="captionStrong" color={colors.strawberryStrong}>Got a group QR code? Join a group →</T>
+      </Pressable>
     </Screen>
   );
 }

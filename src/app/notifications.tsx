@@ -1,7 +1,10 @@
 // 2.5 Notifications. Built from your own data: today's warnings and recent imports.
 // (Phone push reminders are not built yet; this is the in-app list.)
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { setSetting } from '../data/db';
+import { groupsConfigured, recentJoins, savedGroups, type JoinNotice } from '../lib/groups';
 import { Badge, Button, Card, Empty, Screen, T } from '../components/ui';
 import { useFiles } from '../data/db';
 import { useSchedule } from '../data/hooks';
@@ -16,11 +19,18 @@ export default function Notifications() {
   const todays = issues.filter((i) => i.weekday === today);
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const recent = files.filter((f) => Date.parse(f.createdAt) >= weekAgo);
-  const empty = todays.length === 0 && recent.length === 0;
+  // New members in your groups from the past week. Opening this screen marks them as seen.
+  const [joins, setJoins] = useState<JoinNotice[]>([]);
+  useEffect(() => {
+    if (!groupsConfigured) return;
+    recentJoins(savedGroups(), new Date(weekAgo).toISOString()).then(setJoins).catch(() => {});
+    setSetting('joinsSeenAt', new Date().toISOString());
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const empty = todays.length === 0 && recent.length === 0 && joins.length === 0;
   return (
     <Screen title="Notifications" back>
       {empty ? (
-        <Empty icon="notifications-outline" title="You're all caught up" message="Warnings for today and new imports will show here." />
+        <Empty icon="notifications-outline" title="You're all caught up" message="Warnings for today, new imports, and new group members will show here." />
       ) : (
         <>
           {todays.length > 0 && <T v="section">Today</T>}
@@ -29,6 +39,15 @@ export default function Notifications() {
               <Badge tone={i.kind === 'overlap' ? 'error' : 'warning'} label={TITLE[i.kind]} />
               <T>{i.message}</T>
               <View style={{ alignItems: 'flex-end' }}><Button kind="text" label="Review" onPress={() => router.push('/review')} /></View>
+            </Card>
+          ))}
+          {joins.length > 0 && <T v="section">Groups</T>}
+          {joins.map((j) => (
+            <Card key={j.groupId + j.at} style={{ gap: space.sm }}>
+              <Badge tone="success" label="New member" />
+              <T>{j.name} joined {j.groupName} 🎉</T>
+              <T v="caption" color={colors.textSecondary}>{new Date(j.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</T>
+              <View style={{ alignItems: 'flex-end' }}><Button kind="text" label="Open group" onPress={() => router.push({ pathname: '/groups', params: { open: j.groupId } })} /></View>
             </Card>
           ))}
           {recent.length > 0 && <T v="section">Earlier</T>}

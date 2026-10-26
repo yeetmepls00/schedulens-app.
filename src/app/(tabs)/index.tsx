@@ -1,6 +1,7 @@
 // Home: today's events, warnings, and shortcuts.
 import { SummaryGlyph, SummaryIconEditor, type SlotId } from '../../components/summary-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { groupsConfigured, recentJoins, savedGroups, type JoinNotice } from '../../lib/groups';
 import { Avatar } from '../../components/avatar';
 import { InstallApp } from '../../components/install-app';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,6 +41,13 @@ export default function Home() {
     : todays.length ? { emoji: '🎉', line: 'All done for today. Great job!' }
     : { emoji: '☁️', line: 'A free day. Time to recharge!' };
   const [editing, setEditing] = useState<SlotId | null>(null);
+  // Someone joined one of your groups since you last opened Notifications.
+  const [joins, setJoins] = useState<JoinNotice[]>([]);
+  useEffect(() => {
+    if (!groupsConfigured) return;
+    const since = getSetting('joinsSeenAt', new Date(Date.now() - 7 * 864e5).toISOString());
+    recentJoins(savedGroups(), since).then(setJoins).catch(() => {});
+  }, []);
   const todaysIssues = issues.filter((i) => i.weekday === today);
   const name = getSetting('displayName', '');
   const hello = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening';
@@ -62,7 +70,7 @@ export default function Home() {
         <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${todaysIssues.length ? `, ${todaysIssues.length} new` : ''}`}
           style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="notifications-outline" color={colors.text} />
-          {todaysIssues.length > 0 && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
+          {(todaysIssues.length > 0 || joins.length > 0) && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
         </Pressable>
       </View>
 
@@ -103,6 +111,10 @@ export default function Home() {
       </LinearGradient>
       <SummaryIconEditor slot={editing} onClose={() => setEditing(null)} />
 
+      {joins.length > 0 && (
+        <Banner tone="matcha" title={joins.length === 1 ? `${joins[0].name} joined ${joins[0].groupName} 🎉` : `${joins.length} new members joined your groups 🎉`}
+          message="Say hi and plan something together." action="See" onAction={() => router.push('/notifications')} />
+      )}
       {todaysIssues.length > 0 && (
         <Banner tone={todaysIssues.some((i) => i.kind === 'overlap') ? 'error' : 'warning'}
           title={`${todaysIssues.length} ${todaysIssues.length === 1 ? 'thing' : 'things'} to check today`}

@@ -1,4 +1,5 @@
 // Groups: find shared free time. Only busy blocks (day + start + end) leave the phone.
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { QrScanner } from '../../components/qr-scanner';
 import { APP_URL, codeFromQr, readQrFromImage, shareApp } from '../../lib/qr';
@@ -8,6 +9,7 @@ import { Platform, View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Screen, T } from '../../components/ui';
 import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
+import { loadGroupInfo, setGroupDescription } from '../../lib/groups';
 import { addActivity, createGroup, deleteActivity, groupsConfigured, leaveGroup, loadActivities, loadMembers, nextDateFor, saveGroups, savedGroups, shareBusy, type Activity, type Group, type MemberBusy } from '../../lib/groups';
 import { DAY_SHORT, formatDuration, formatTime, parseTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
@@ -41,6 +43,9 @@ export default function Groups() {
     try { setInviteNote((await shareApp()) === 'copied' ? 'Link copied. Paste it in a chat.' : ''); } catch { setInviteNote('Share this link: ' + APP_URL); }
   }
   const [busy, setBusy] = useState(false);
+  const [desc, setDesc] = useState('');
+  const [info, setInfo] = useState<{ description: string; isOwner: boolean } | null>(null);
+  const [editDesc, setEditDesc] = useState<string | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [plan, setPlan] = useState<{ title: string; day: string; start: string; end: string; place: string } | null>(null);
   const [planErr, setPlanErr] = useState<string | null>(null);
@@ -62,7 +67,8 @@ export default function Groups() {
 
   useEffect(() => {
     if (!open) return;
-    run(async () => { setMembers(await loadMembers(open.id)); setActivities(await loadActivities(open.id)); });
+    setInfo(null); setEditDesc(null);
+    run(async () => { setMembers(await loadMembers(open.id)); setActivities(await loadActivities(open.id)); setInfo(await loadGroupInfo(open.id).catch(() => ({ description: '', isOwner: false }))); });
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!groupsConfigured) {
@@ -80,14 +86,39 @@ export default function Groups() {
     const slots = findFreeSlots(members.map((m) => m.blocks), day);
     return (
       <Screen title={open.name} back={false} right={<Button kind="text" label="Close" onPress={() => setOpen(null)} />}>
-        <Banner tone="matcha" title="Private by design" message="Members see only when you are busy, never what your events are." />
         {error && <Banner tone="error" title="Could not load" message={error} />}
-        <View style={{ flexDirection: 'row', gap: space.md }}>
-          <Button kind="secondary" label="Invite" icon="person-add-outline" style={{ flex: 1 }}
+        <LinearGradient colors={['#FFE3E8', '#FFF6EE', '#E9F3DC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: space.lg, gap: space.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}><T style={{ fontSize: 26 }}>👥</T></View>
+            <View style={{ flex: 1 }}>
+              <T v="section">{open.name}</T>
+              <T v="caption" color={colors.textSecondary}>{members.length} {members.length === 1 ? 'member' : 'members'}</T>
+            </View>
+          </View>
+          {editDesc !== null ? (
+            <>
+              <Field label="Description (optional)" value={editDesc} onChangeText={(v) => setEditDesc(v.slice(0, 200))} placeholder="e.g. Our thesis group for 4th year" />
+              <View style={{ flexDirection: 'row', gap: space.md }}>
+                <Button kind="secondary" label="Cancel" style={{ flex: 1 }} onPress={() => setEditDesc(null)} />
+                <Button label="Save" style={{ flex: 1 }} loading={busy} onPress={() => run(async () => { await setGroupDescription(open.id, editDesc); setInfo({ description: editDesc.trim(), isOwner: true }); setEditDesc(null); })} />
+              </View>
+            </>
+          ) : info?.description ? (
+            <T>{info.description}</T>
+          ) : info?.isOwner ? <T v="caption" color={colors.textSecondary}>No description yet.</T> : null}
+          {info?.isOwner && editDesc === null && <Button kind="text" icon="create-outline" label={info.description ? 'Edit description' : 'Add description'} style={{ alignSelf: 'flex-start' }} onPress={() => setEditDesc(info.description)} />}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {members.map((m) => (
+              <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.white, borderRadius: 999, paddingVertical: 4, paddingLeft: 4, paddingRight: 10 }}>
+                <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.strawberrySoft, alignItems: 'center', justifyContent: 'center' }}><T v="captionStrong" color={colors.strawberryStrong}>{(m.displayName || '?')[0].toUpperCase()}</T></View>
+                <T v="captionStrong">{m.displayName}</T>
+              </View>
+            ))}
+          </View>
+          <Button kind="secondary" label="Invite" icon="person-add-outline"
             onPress={() => router.push({ pathname: '/invite', params: { name: open.name, code: open.code, expiresAt: open.expiresAt } })} />
-        </View>
-        <T v="section">{members.length} {members.length === 1 ? 'member' : 'members'}</T>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{members.map((m) => <Badge key={m.userId} tone="neutral" label={m.displayName} />)}</View>
+        </LinearGradient>
+        <Banner tone="matcha" title="Private by design" message="Members see only when you are busy, never what your events are." />
         <T v="section">Group activities</T>
         <T v="caption" color={colors.textSecondary}>Set a date for a meeting or activity. Everyone in the group can see it.</T>
         {activities.length === 0 && !plan && <Empty icon="calendar-outline" title="Nothing planned yet" message="Pick a free time below and tap Plan, or add one yourself." />}
@@ -161,7 +192,8 @@ export default function Groups() {
       <Card style={{ gap: space.md }}>
         <T v="cardTitle">Create a group</T>
         <Field label="Group name" value={name} onChangeText={setName} placeholder="e.g. Thesis team" />
-        <Button label="Create" loading={busy} disabled={!name.trim()} onPress={() => run(async () => { const g = await createGroup(name.trim(), displayName, events); save([...groups, g]); setName(''); setOpen(g); })} />
+        <Field label="Description (optional)" value={desc} onChangeText={(v) => setDesc(v.slice(0, 200))} placeholder="e.g. Our thesis group for 4th year" />
+        <Button label="Create" loading={busy} disabled={!name.trim()} onPress={() => run(async () => { const g = await createGroup(name.trim(), displayName, events); if (desc.trim()) await setGroupDescription(g.id, desc); save([...groups, g]); setName(''); setDesc(''); setOpen(g); })} />
       </Card>
       <Card style={{ gap: space.md }}>
         <T v="cardTitle">Join with a code</T>
