@@ -97,8 +97,9 @@ const SECTIONS: Section[] = [
     'Blank page inside Messenger or Facebook: tap the menu and choose Open in browser.',
   ] },
   { id: 'install', title: '15. Add ScheduLens to your home screen', steps: [
-    'Android (Chrome): open Profile & Settings and tap Install ScheduLens, or open the browser menu and tap "Add to Home screen".',
+    'Android (Google Chrome): open Profile & Settings and tap Install ScheduLens, or tap the ⋮ menu, then "Add to Home screen", then "Install".',
     'iPhone (Safari): tap the Share button, then "Add to Home Screen".',
+    'Computer (Google Chrome or Edge): click the install icon at the right end of the address bar, or open the ⋮ menu and choose "Install ScheduLens".',
     'Open ScheduLens from the new icon. It runs full screen, like an app.',
   ] },
   { id: 'activities', title: '16. Plan an activity with your group', steps: [
