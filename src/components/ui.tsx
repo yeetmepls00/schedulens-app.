@@ -63,7 +63,7 @@ export function Button({ label, onPress, kind = 'primary', disabled, loading, ic
         kind === 'text' && { paddingHorizontal: space.sm }, style]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} size={18} color={fg} /> : null}
-      <Text style={[type.button, { color: fg }]}>{loading ? 'Please wait…' : label}</Text>
+      <Text numberOfLines={1} style={[type.button, { color: fg, flexShrink: 1 }]}>{loading ? 'Please wait…' : label}</Text>
     </Pressable>
   );
 }
@@ -196,7 +196,7 @@ export const s = StyleSheet.create({
   headerSide: { width: TOUCH, justifyContent: 'center' },
   iconBtn: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: space.xl, paddingBottom: 34, backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, flexDirection: 'row', gap: space.md },
-  btn: { minHeight: TOUCH, borderRadius: radius.button, paddingHorizontal: space.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
+  btn: { minHeight: TOUCH, borderRadius: radius.button, paddingHorizontal: space.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   card: { backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.lg, gap: space.md },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   banner: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.button, borderWidth: 1 },

@@ -123,7 +123,7 @@ export default function Groups() {
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Button kind="secondary" label="Invite" icon="person-add-outline" style={{ flex: 1 }}
               onPress={() => router.push({ pathname: '/invite', params: { name: open.name, code: open.code, expiresAt: open.expiresAt } })} />
-            <Button kind="secondary" label="Color & photo" icon="color-palette-outline" style={{ flex: 1 }} onPress={() => setStyling(open.id)} />
+            <Button kind="secondary" label="Style" icon="color-palette-outline" style={{ flex: 1 }} onPress={() => setStyling(open.id)} />
           </View>
         </GroupBackdrop>
         <GroupLookEditor groupId={styling} onClose={() => setStyling(null)} />
