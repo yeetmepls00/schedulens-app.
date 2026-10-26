@@ -17,3 +17,14 @@ export function useUpdateReady(): boolean {
 }
 
 export const applyUpdate = () => window.location.reload();
+
+/** Notes when the app has just been updated, so Notifications can say so until it is cleared. */
+export function recordVersion() {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  const cur = document.querySelector('script[src*="/_expo/static/js/web/entry-"]')?.getAttribute('src');
+  if (!cur) return;
+  const { getSetting, setSetting } = require('../data/db') as typeof import('../data/db');
+  const before = getSetting<string>('appVersion', '');
+  if (before && before !== cur) setSetting('updatedAt', new Date().toISOString());
+  if (before !== cur) setSetting('appVersion', cur);
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { dbReady } from '../data/db';
+import { recordVersion } from '../lib/update';
 import { isPublicPath, loadAuth, rememberNext, rememberResetLink, useSignedIn } from '../lib/auth';
 
 // Supabase may send a reset link to the site's home page instead of
@@ -20,7 +21,7 @@ export default function RootLayout() {
 
   // Wait until local storage is open before showing any screen.
   useEffect(() => {
-    dbReady.then(loadAuth).then(() => setIsMounted(true), (e) => { console.error('Storage failed to open', e); setFailed(true); });
+    dbReady.then(() => { recordVersion(); return loadAuth(); }).then(() => setIsMounted(true), (e) => { console.error('Storage failed to open', e); setFailed(true); });
   }, []);
 
   useEffect(() => {

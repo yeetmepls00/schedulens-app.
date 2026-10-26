@@ -73,7 +73,7 @@ export default function Home() {
         <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${todaysIssues.length ? `, ${todaysIssues.length} new` : ''}`}
           style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="notifications-outline" color={colors.text} />
-          {(todaysIssues.length > 0 || joins.length > 0 || update) && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
+          {((todaysIssues.length > 0 && new Date(getSetting('notifClearedAt', '0')).toDateString() !== now.toDateString()) || joins.length > 0 || update) && <View style={{ position: 'absolute', top: 10, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.strawberry }} />}
         </Pressable>
       </View>
 
