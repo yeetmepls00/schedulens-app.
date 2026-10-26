@@ -23,10 +23,15 @@
         flex: 1;
       }
     </style>
-    <!-- Quicksand matches the Figma design. Without it each device used its own system font. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Fonts are served from this site: the page's security headers (COEP) block Google Fonts. -->
+    <link rel="preload" href="/fonts/gochi-hand-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      @font-face{font-family:'Gochi Hand';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/gochi-hand-latin-400-normal.woff2) format('woff2')}
+      @font-face{font-family:'Quicksand';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/quicksand-latin-400-normal.woff2) format('woff2')}
+      @font-face{font-family:'Quicksand';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/quicksand-latin-500-normal.woff2) format('woff2')}
+      @font-face{font-family:'Quicksand';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/quicksand-latin-600-normal.woff2) format('woff2')}
+      @font-face{font-family:'Quicksand';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/quicksand-latin-700-normal.woff2) format('woff2')}
+    </style>
   <link rel="icon" href="/favicon.ico"/>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#FFF0F1" />

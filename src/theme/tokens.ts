@@ -29,7 +29,7 @@ export const colors = {
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const radius = { sm: 8, button: 12, card: 16, pill: 999 } as const;
 
-/** Quicksand (loaded in public/index.html) matches the Figma design; falls back to the system font. */
+/** Quicksand (served from public/fonts) matches the Figma design; falls back to the system font. */
 export const FONT = "Quicksand, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
 /** Hand-drawn Gochi Hand for titles (the whimsy font in Figma). It has one weight, so titles stay at normal weight. */
