@@ -1,4 +1,6 @@
 // Home: today's events, warnings, and shortcuts.
+import { SummaryGlyph, SummaryIconEditor, type SlotId } from '../../components/summary-icons';
+import { useState } from 'react';
 import { Avatar } from '../../components/avatar';
 import { InstallApp } from '../../components/install-app';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,6 +39,7 @@ export default function Home() {
     : soon ? { emoji: '🍓', line: `Next: ${soon.title} at ${formatTime(soon.startMin)}` }
     : todays.length ? { emoji: '🎉', line: 'All done for today. Great job!' }
     : { emoji: '☁️', line: 'A free day. Time to recharge!' };
+  const [editing, setEditing] = useState<SlotId | null>(null);
   const todaysIssues = issues.filter((i) => i.weekday === today);
   const name = getSetting('displayName', '');
   const hello = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening';
@@ -65,15 +68,17 @@ export default function Home() {
 
       <LinearGradient colors={['#FFD6DC', '#FFF1E6', '#E3F0D3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={{ borderRadius: 24, padding: space.lg, gap: space.md, overflow: 'hidden' }}>
-        <T style={{ position: 'absolute', right: 14, top: 8, fontSize: 44 }}>{mood.emoji}</T>
+        <Pressable onPress={() => setEditing('mascot')} accessibilityRole="button" accessibilityLabel="Change card mascot" style={{ position: 'absolute', right: 12, top: 8, zIndex: 1 }}>
+          <SummaryGlyph slot="mascot" size={44} fallback={mood.emoji} />
+        </Pressable>
         <View style={{ paddingRight: 56 }}>
           <T v="captionStrong" color={colors.strawberryStrong}>{now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</T>
           <T v="cardTitle">{mood.line}</T>
         </View>
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {([[String(todays.length), 'on today', '🍓', '#FFE3E8'], [`${Math.round(busyMin / 6) / 10}h`, 'busy for', '🍵', '#E3F0D3'], [String(upcoming.length), 'left to go', '🌷', '#FFF0D6']] as const).map(([n, l, d, bg]) => (
+          {([[String(todays.length), 'on today', 'today', '#FFE3E8'], [`${Math.round(busyMin / 6) / 10}h`, 'busy for', 'busy', '#E3F0D3'], [String(upcoming.length), 'left to go', 'left', '#FFF0D6']] as const).map(([n, l, d, bg]) => (
             <View key={l} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 18, padding: 10, alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#F3C6CE' }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}><T style={{ fontSize: 22 }}>{d}</T></View>
+              <Pressable onPress={() => setEditing(d)} accessibilityRole="button" accessibilityLabel={`Change ${l} icon`} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><SummaryGlyph slot={d} size={22} /></Pressable>
               <T style={{ fontFamily: WHIMSY, fontSize: 24, lineHeight: 28 }}>{n}</T>
               <T v="caption" color={colors.textSecondary} center>{l}</T>
             </View>
@@ -94,7 +99,9 @@ export default function Home() {
             );
           })}
         </View>
+        <T v="caption" color={colors.textSecondary} center>Tap an icon to change it ✎</T>
       </LinearGradient>
+      <SummaryIconEditor slot={editing} onClose={() => setEditing(null)} />
 
       {todaysIssues.length > 0 && (
         <Banner tone={todaysIssues.some((i) => i.kind === 'overlap') ? 'error' : 'warning'}

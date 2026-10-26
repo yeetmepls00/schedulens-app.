@@ -22,11 +22,17 @@ function shrink(uri: string, size = 256): Promise<string> {
   });
 }
 
+/** Lets the person choose a square photo. Returns null if they cancelled. */
+export async function pickSquareImage(size = 256): Promise<string | null> {
+  const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+  if (r.canceled || !r.assets?.[0]) return null;
+  return Platform.OS === 'web' ? shrink(r.assets[0].uri, size) : r.assets[0].uri;
+}
+
 /** Lets the person choose a photo. Returns false if they cancelled. */
 export async function pickAvatar(): Promise<boolean> {
-  const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-  if (r.canceled || !r.assets?.[0]) return false;
-  const uri = Platform.OS === 'web' ? await shrink(r.assets[0].uri) : r.assets[0].uri;
+  const uri = await pickSquareImage();
+  if (!uri) return false;
   setSetting('avatar', uri);
   return true;
 }
