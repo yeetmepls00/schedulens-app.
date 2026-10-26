@@ -80,13 +80,33 @@ export default function Settings() {
     try { await sendPasswordReset(email); say('success', 'Check your email', `We sent a link to ${email} to set a new password.`); }
     catch (e) { say('error', 'Could not send the link', e instanceof Error ? e.message : 'Try again.'); }
   }
-  function saveBackup() {
-    const blob = new Blob([exportBackup()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `schedulens-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    say('success', 'Backup saved', 'Open ScheduLens where you want your schedule, then tap Restore from backup and pick this file.');
+  async function saveBackup() {
+    const name = `schedulens-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const text = exportBackup();
+    const done = () => say('success', 'Backup saved', 'Open ScheduLens where you want your schedule, then tap Restore from backup and pick this file.');
+    // Phones (and the installed app on iPhone) often block plain downloads, so use the share sheet when it can take files.
+    try {
+      const file = new File([text], name, { type: 'application/json' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'ScheduLens backup' });
+        return done();
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') return;
+    }
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      done();
+    } catch {
+      say('error', 'Could not save the file', 'Try again from your browser instead of the installed app.');
+    }
   }
   function restoreBackup() {
     const input = document.createElement('input');
