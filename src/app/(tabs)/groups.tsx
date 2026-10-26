@@ -1,15 +1,18 @@
 // Groups: find shared free time. Only busy blocks (day + start + end) leave the phone.
 import { LinearGradient } from 'expo-linear-gradient';
+import { InviteAppCard } from '../../components/invite-app';
 import * as ImagePicker from 'expo-image-picker';
 import { QrScanner } from '../../components/qr-scanner';
-import { APP_URL, codeFromQr, readQrFromImage, shareApp } from '../../lib/qr';
+import { codeFromQr, readQrFromImage } from '../../lib/qr';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
-import { Badge, Banner, Button, Card, Chip, Empty, Field, Screen, T } from '../../components/ui';
+import { Image, Platform, View } from 'react-native';
+import { Badge, Banner, Button, Card, Chip, Empty, Field, Icon, Screen, T } from '../../components/ui';
 import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
-import { loadGroupInfo, setGroupDescription } from '../../lib/groups';
+import { loadGroupInfo, loadGroupSummary, setGroupDescription } from '../../lib/groups';
+import { getGroupLook } from '../../lib/group-look';
+import { GroupBackdrop, GroupListCard, GroupLookEditor, MemberBubbles } from '../../components/group-card';
 import { addActivity, createGroup, deleteActivity, groupsConfigured, leaveGroup, loadActivities, loadMembers, nextDateFor, saveGroups, savedGroups, shareBusy, type Activity, type Group, type MemberBusy } from '../../lib/groups';
 import { DAY_SHORT, formatDuration, formatTime, parseTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
@@ -26,7 +29,6 @@ export default function Groups() {
   const [code, setCode] = useState('');
   const [scanning, setScanning] = useState(false);
   const [qrError, setQrError] = useState('');
-  const [inviteNote, setInviteNote] = useState('');
   function joinFromQr(text: string | null) {
     const c = text ? codeFromQr(text) : null;
     if (!c) { setQrError(text ? 'That QR code is not a ScheduLens group code.' : 'No QR code found in that picture. Try a clearer one.'); return; }
@@ -39,13 +41,21 @@ export default function Groups() {
     if (r.canceled || !r.assets?.[0]) return;
     try { joinFromQr(await readQrFromImage(r.assets[0].uri)); } catch (e) { setQrError(e instanceof Error ? e.message : 'Could not read that picture.'); }
   }
-  async function inviteFriends() {
-    try { setInviteNote((await shareApp()) === 'copied' ? 'Link copied. Paste it in a chat.' : ''); } catch { setInviteNote('Share this link: ' + APP_URL); }
-  }
   const [busy, setBusy] = useState(false);
   const [desc, setDesc] = useState('');
   const [info, setInfo] = useState<{ description: string; isOwner: boolean } | null>(null);
   const [editDesc, setEditDesc] = useState<string | null>(null);
+  const [styling, setStyling] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [summaries, setSummaries] = useState<Record<string, { description: string; members: string[] }>>({});
+  // Fill the list cards with member names and descriptions.
+  useEffect(() => {
+    if (open || !groupsConfigured) return;
+    let live = true;
+    Promise.all(groups.map(async (g) => [g.id, await loadGroupSummary(g.id).catch(() => ({ description: '', members: [] }))] as const))
+      .then((rows) => { if (live) setSummaries(Object.fromEntries(rows)); });
+    return () => { live = false; };
+  }, [groups, open]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [plan, setPlan] = useState<{ title: string; day: string; start: string; end: string; place: string } | null>(null);
   const [planErr, setPlanErr] = useState<string | null>(null);
@@ -87,9 +97,11 @@ export default function Groups() {
     return (
       <Screen title={open.name} back={false} right={<Button kind="text" label="Close" onPress={() => setOpen(null)} />}>
         {error && <Banner tone="error" title="Could not load" message={error} />}
-        <LinearGradient colors={['#FFE3E8', '#FFF6EE', '#E9F3DC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: space.lg, gap: space.sm }}>
+        <GroupBackdrop groupId={open.id} style={{ padding: space.lg, gap: space.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}><T style={{ fontSize: 26 }}>👥</T></View>
+            <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {getGroupLook(open.id).photo ? <Image source={{ uri: getGroupLook(open.id).photo }} style={{ width: 56, height: 56 }} /> : <Icon name="people" size={28} color={getGroupLook(open.id).accent} />}
+            </View>
             <View style={{ flex: 1 }}>
               <T v="section">{open.name}</T>
               <T v="caption" color={colors.textSecondary}>{members.length} {members.length === 1 ? 'member' : 'members'}</T>
@@ -107,17 +119,14 @@ export default function Groups() {
             <T>{info.description}</T>
           ) : info?.isOwner ? <T v="caption" color={colors.textSecondary}>No description yet.</T> : null}
           {info?.isOwner && editDesc === null && <Button kind="text" icon="create-outline" label={info.description ? 'Edit description' : 'Add description'} style={{ alignSelf: 'flex-start' }} onPress={() => setEditDesc(info.description)} />}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {members.map((m) => (
-              <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.white, borderRadius: 999, paddingVertical: 4, paddingLeft: 4, paddingRight: 10 }}>
-                <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.strawberrySoft, alignItems: 'center', justifyContent: 'center' }}><T v="captionStrong" color={colors.strawberryStrong}>{(m.displayName || '?')[0].toUpperCase()}</T></View>
-                <T v="captionStrong">{m.displayName}</T>
-              </View>
-            ))}
+          <MemberBubbles names={members.map((m) => m.displayName)} accent={getGroupLook(open.id).accent} max={12} />
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <Button kind="secondary" label="Invite" icon="person-add-outline" style={{ flex: 1 }}
+              onPress={() => router.push({ pathname: '/invite', params: { name: open.name, code: open.code, expiresAt: open.expiresAt } })} />
+            <Button kind="secondary" label="Color & photo" icon="color-palette-outline" style={{ flex: 1 }} onPress={() => setStyling(open.id)} />
           </View>
-          <Button kind="secondary" label="Invite" icon="person-add-outline"
-            onPress={() => router.push({ pathname: '/invite', params: { name: open.name, code: open.code, expiresAt: open.expiresAt } })} />
-        </LinearGradient>
+        </GroupBackdrop>
+        <GroupLookEditor groupId={styling} onClose={() => setStyling(null)} />
         <Banner tone="matcha" title="Private by design" message="Members see only when you are busy, never what your events are." />
         <T v="section">Group activities</T>
         <T v="caption" color={colors.textSecondary}>Set a date for a meeting or activity. Everyone in the group can see it.</T>
@@ -183,18 +192,18 @@ export default function Groups() {
   }
 
   return (
-    <Screen title="Groups">
+    <Screen title="Groups" right={<Button kind="text" icon={creating ? 'close' : 'add'} label={creating ? 'Close' : 'New'} onPress={() => setCreating(!creating)} />}>
       <T color={colors.textSecondary}>Create or join a group to see when everyone is free. Only your busy times are shared, never event names, rooms, or instructors.</T>
       {error && <Banner tone="error" title="Could not finish" message={error} />}
-      {groups.map((g) => (
-        <Card key={g.id}><Button kind="text" label={g.name} icon="people" onPress={() => setOpen(g)} /></Card>
-      ))}
-      <Card style={{ gap: space.md }}>
+      {(creating || groups.length === 0) && <Card style={{ gap: space.md }}>
         <T v="cardTitle">Create a group</T>
         <Field label="Group name" value={name} onChangeText={setName} placeholder="e.g. Thesis team" />
         <Field label="Description (optional)" value={desc} onChangeText={(v) => setDesc(v.slice(0, 200))} placeholder="e.g. Our thesis group for 4th year" />
-        <Button label="Create" loading={busy} disabled={!name.trim()} onPress={() => run(async () => { const g = await createGroup(name.trim(), displayName, events); if (desc.trim()) await setGroupDescription(g.id, desc); save([...groups, g]); setName(''); setDesc(''); setOpen(g); })} />
-      </Card>
+        <Button label="Create" loading={busy} disabled={!name.trim()} onPress={() => run(async () => { const g = await createGroup(name.trim(), displayName, events); if (desc.trim()) await setGroupDescription(g.id, desc); save([...groups, g]); setName(''); setDesc(''); setCreating(false); setOpen(g); })} />
+      </Card>}
+      {groups.map((g) => (
+        <GroupListCard key={g.id} id={g.id} name={g.name} description={summaries[g.id]?.description} members={summaries[g.id]?.members} onPress={() => setOpen(g)} />
+      ))}
       <Card style={{ gap: space.md }}>
         <T v="cardTitle">Join a group</T>
         <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-end' }}>
@@ -216,12 +225,7 @@ export default function Groups() {
         )}
         {qrError ? <Badge tone="error" label={qrError} /> : null}
       </Card>
-      <Card style={{ gap: space.sm, alignItems: 'center' }}>
-        <T v="cardTitle" center>Invite friends to ScheduLens 💌</T>
-        <T v="caption" color={colors.textSecondary} center>Send them the app link so they can join your groups too.</T>
-        <Button icon="share-social-outline" label="Invite friends" onPress={inviteFriends} />
-        {inviteNote ? <Badge tone="success" label={inviteNote} /> : null}
-      </Card>
+      <InviteAppCard />
       <QrScanner open={scanning} onClose={() => setScanning(false)} onResult={(t) => { setScanning(false); joinFromQr(t); }} />
     </Screen>
   );

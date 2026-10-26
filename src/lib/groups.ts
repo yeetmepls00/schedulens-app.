@@ -163,3 +163,12 @@ export async function recentJoins(groups: Group[], since: string): Promise<JoinN
     groupId: r.group_id, groupName: groups.find((g) => g.id === r.group_id)?.name ?? 'your group', name: r.username, at: r.joined_at,
   }));
 }
+
+/** Member names and description for a group card in the list. */
+export async function loadGroupSummary(groupId: string): Promise<{ description: string; members: string[] }> {
+  const [g, m] = await Promise.all([
+    sb().from('groups').select('description').eq('id', groupId).single(),
+    sb().from('group_members').select('username').eq('group_id', groupId).order('joined_at'),
+  ]);
+  return { description: g.data?.description ?? '', members: (m.data ?? []).map((r) => r.username) };
+}

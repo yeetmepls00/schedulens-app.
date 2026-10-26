@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUpdateReady } from '../../lib/update';
 import { groupsConfigured, recentJoins, savedGroups, type JoinNotice } from '../../lib/groups';
 import { Avatar } from '../../components/avatar';
+import { InviteAppCard } from '../../components/invite-app';
 import { InstallApp } from '../../components/install-app';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -166,6 +167,7 @@ export default function Home() {
           <T v="caption" color={colors.textSecondary}>{TIPS[now.getDate() % TIPS.length]}</T>
         </View>
       </View>
+      <InviteAppCard />
       <InstallApp hideWhenInstalled />
     </Screen>
   );
