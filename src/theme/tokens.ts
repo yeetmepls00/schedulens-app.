@@ -29,17 +29,17 @@ export const colors = {
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const radius = { sm: 8, button: 12, card: 16, pill: 999 } as const;
 
-/** Quicksand (served from public/fonts) matches the Figma design; falls back to the system font. */
-export const FONT = "Quicksand, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+/** Nunito (served from public/fonts): rounded and easy to read at small sizes. */
+export const FONT = "Nunito, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
-/** Hand-drawn Gochi Hand for titles (the whimsy font in Figma). It has one weight, so titles stay at normal weight. */
-export const WHIMSY = "'Gochi Hand', 'Comic Sans MS', cursive";
+/** Fredoka for titles: soft, round and playful, but still clear. */
+export const WHIMSY = "Fredoka, Nunito, system-ui, sans-serif";
 
 export const type = {
-  brand: { fontSize: 44, fontFamily: WHIMSY, fontWeight: '400' as const, letterSpacing: 0.5 },
-  welcome: { fontSize: 34, fontFamily: WHIMSY, fontWeight: '400' as const, lineHeight: 40 },
-  screenTitle: { fontSize: 28, fontFamily: WHIMSY, fontWeight: '400' as const, lineHeight: 34 },
-  section: { fontSize: 25, fontFamily: WHIMSY, fontWeight: '400' as const, lineHeight: 30 },
+  brand: { fontSize: 40, fontFamily: WHIMSY, fontWeight: '600' as const, letterSpacing: 0.3 },
+  welcome: { fontSize: 30, fontFamily: WHIMSY, fontWeight: '600' as const, lineHeight: 38 },
+  screenTitle: { fontSize: 23, fontFamily: WHIMSY, fontWeight: '600' as const, lineHeight: 30 },
+  section: { fontSize: 20, fontFamily: WHIMSY, fontWeight: '600' as const, lineHeight: 26 },
   cardTitle: { fontSize: 17, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 23 },
   body: { fontSize: 15, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 21 },
   label: { fontSize: 15, fontFamily: FONT, fontWeight: '600' as const, lineHeight: 21 },

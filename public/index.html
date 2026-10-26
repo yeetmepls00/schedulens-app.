@@ -24,13 +24,15 @@
       }
     </style>
     <!-- Fonts are served from this site: the page's security headers (COEP) block Google Fonts. -->
-    <link rel="preload" href="/fonts/gochi-hand-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/fredoka-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <style>
-      @font-face{font-family:'Gochi Hand';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/gochi-hand-latin-400-normal.woff2) format('woff2')}
-      @font-face{font-family:'Quicksand';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/quicksand-latin-400-normal.woff2) format('woff2')}
-      @font-face{font-family:'Quicksand';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/quicksand-latin-500-normal.woff2) format('woff2')}
-      @font-face{font-family:'Quicksand';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/quicksand-latin-600-normal.woff2) format('woff2')}
-      @font-face{font-family:'Quicksand';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/quicksand-latin-700-normal.woff2) format('woff2')}
+      @font-face{font-family:'Fredoka';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/fredoka-latin-500-normal.woff2) format('woff2')}
+      @font-face{font-family:'Fredoka';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/fredoka-latin-600-normal.woff2) format('woff2')}
+      @font-face{font-family:'Nunito';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/nunito-latin-400-normal.woff2) format('woff2')}
+      @font-face{font-family:'Nunito';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/nunito-latin-500-normal.woff2) format('woff2')}
+      @font-face{font-family:'Nunito';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/nunito-latin-600-normal.woff2) format('woff2')}
+      @font-face{font-family:'Nunito';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/nunito-latin-700-normal.woff2) format('woff2')}
+      @font-face{font-family:'Nunito';font-style:normal;font-weight:800;font-display:swap;src:url(/fonts/nunito-latin-800-normal.woff2) format('woff2')}
     </style>
   <link rel="icon" href="/favicon.ico"/>
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -63,10 +65,10 @@
       <div class="msg" id="bootmsg">Sharpening the pencils…</div>
     </div>
     <style>
-      #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(180deg,#EEF3E2 0%,#FFF8F5 50%,#FBD0D4 100%);font-family:Quicksand,system-ui,sans-serif;color:#3A2A2C;z-index:9}
+      #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(180deg,#EEF3E2 0%,#FFF8F5 50%,#FBD0D4 100%);font-family:Nunito,system-ui,sans-serif;color:#3A2A2C;z-index:9}
       #root:not(:empty)~#boot{display:none}
       #boot .bob{width:112px;height:112px;border-radius:30px;box-shadow:0 14px 30px rgba(184,50,75,.25);animation:bob 3.2s ease-in-out infinite}
-      #boot .name{font-family:'Gochi Hand',cursive;font-size:44px;color:#B8324B}
+      #boot .name{font-family:Fredoka,system-ui,sans-serif;font-weight:600;font-size:40px;color:#B8324B}
       #boot .msg{font-size:16px;font-weight:600;color:#6B5B5D}
       #boot .dots{display:flex;gap:8px}#boot .dots i{width:12px;height:12px;border-radius:6px;background:#E8708A;animation:hop 2s ease-in-out infinite}
       #boot .dots i:nth-child(2){background:#9CC27A;animation-delay:.35s}#boot .dots i:nth-child(3){background:#F4B860;animation-delay:.3s}
@@ -82,7 +84,7 @@
       var t=setInterval(function(){var e=document.getElementById('bootmsg');if(!e||document.getElementById('root').childElementCount){clearInterval(t);return}i=(i+1)%m.length;e.textContent=m[i]},2800)})();
     </script>
     <!-- Tells people when a newer version is live, so an open or installed app doesn't stay on the old one. -->
-    <div id="upd" role="button" tabindex="0" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:20;background:#B8324B;color:#fff;font:700 15px Quicksand,system-ui,sans-serif;padding:12px 20px;border-radius:999px;box-shadow:0 8px 24px rgba(184,50,75,.35);cursor:pointer">✨ New version ready · Tap to update</div>
+    <div id="upd" role="button" tabindex="0" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:20;background:#B8324B;color:#fff;font:700 15px Nunito,system-ui,sans-serif;padding:12px 20px;border-radius:999px;box-shadow:0 8px 24px rgba(184,50,75,.35);cursor:pointer">✨ New version ready · Tap to update</div>
     <script>
       (function(){
         var mine=function(){var s=document.querySelector('script[src*="/_expo/static/js/web/entry-"]');return s&&s.getAttribute('src')};
