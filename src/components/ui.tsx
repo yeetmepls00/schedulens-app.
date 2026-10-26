@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius, space, TOUCH, type } from '../theme/tokens';
+import { colors, radius, space, FONT, TOUCH, type } from '../theme/tokens';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 export const Icon = ({ name, size = 22, color = colors.text }: { name: IconName; size?: number; color?: string }) => (
@@ -200,7 +200,7 @@ export const s = StyleSheet.create({
   card: { backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.lg, gap: space.md },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   banner: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.button, borderWidth: 1 },
-  input: { minHeight: TOUCH, borderRadius: radius.button, paddingHorizontal: space.lg, fontSize: 15, color: colors.text },
+  input: { fontFamily: FONT, minHeight: TOUCH, borderRadius: radius.button, paddingHorizontal: space.lg, fontSize: 15, color: colors.text },
   segment: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: radius.pill, padding: 4, gap: 4 },
   segItem: { flex: 1, minHeight: 36, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   chip: { minHeight: 40, minWidth: 44, paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
@@ -225,7 +225,7 @@ function PullScroll({ children }: { children: ReactNode }) {
       {(pull > 0 || loading) && (
         <View style={{ height: loading ? READY : pull, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8 }} accessibilityLiveRegion="polite">
           {loading ? <ActivityIndicator color={colors.strawberryStrong} />
-            : <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>{pull >= READY ? 'Release to refresh' : 'Pull down to refresh'}</Text>}
+            : <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', fontFamily: FONT }}>{pull >= READY ? 'Release to refresh' : 'Pull down to refresh'}</Text>}
         </View>
       )}
       {children}

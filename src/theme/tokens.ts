@@ -29,17 +29,20 @@ export const colors = {
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const radius = { sm: 8, button: 12, card: 16, pill: 999 } as const;
 
+/** Quicksand (loaded in public/index.html) matches the Figma design; falls back to the system font. */
+export const FONT = "Quicksand, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+
 export const type = {
-  brand: { fontSize: 36, fontWeight: '700' as const, letterSpacing: 0.5 },
-  welcome: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36 },
-  screenTitle: { fontSize: 20, fontWeight: '700' as const, lineHeight: 28 },
-  section: { fontSize: 18, fontWeight: '700' as const, lineHeight: 24 },
-  cardTitle: { fontSize: 16, fontWeight: '700' as const, lineHeight: 22 },
-  body: { fontSize: 14, fontWeight: '500' as const, lineHeight: 20 },
-  label: { fontSize: 14, fontWeight: '600' as const, lineHeight: 20 },
-  button: { fontSize: 15, fontWeight: '700' as const, lineHeight: 20 },
-  caption: { fontSize: 12, fontWeight: '500' as const, lineHeight: 16 },
-  captionStrong: { fontSize: 12, fontWeight: '700' as const, lineHeight: 16 },
+  brand: { fontSize: 36, fontFamily: FONT, fontWeight: '700' as const, letterSpacing: 0.5 },
+  welcome: { fontSize: 28, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 36 },
+  screenTitle: { fontSize: 20, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 28 },
+  section: { fontSize: 18, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 24 },
+  cardTitle: { fontSize: 16, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 22 },
+  body: { fontSize: 14, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 20 },
+  label: { fontSize: 14, fontFamily: FONT, fontWeight: '600' as const, lineHeight: 20 },
+  button: { fontSize: 15, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 20 },
+  caption: { fontSize: 12, fontFamily: FONT, fontWeight: '500' as const, lineHeight: 16 },
+  captionStrong: { fontSize: 12, fontFamily: FONT, fontWeight: '700' as const, lineHeight: 16 },
 } as const;
 
 /** Minimum touch target on both platforms. */
