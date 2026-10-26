@@ -2,11 +2,13 @@
 // (Phone push reminders are not built yet; this is the in-app list.)
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, View } from 'react-native';
+import { confirm } from '../lib/confirm';
 import { getSetting, setSetting } from '../data/db';
 import { applyUpdate, useUpdateReady } from '../lib/update';
 import { groupsConfigured, recentJoins, savedGroups, type JoinNotice } from '../lib/groups';
-import { Badge, Button, Card, Empty, Screen, T } from '../components/ui';
+import { Badge, Button, Card, Empty, Icon, Screen, T } from '../components/ui';
 import { useFiles } from '../data/db';
 import { useSchedule } from '../data/hooks';
 import { colors, space } from '../theme/tokens';
@@ -35,28 +37,46 @@ export default function Notifications() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const update = useUpdateReady();
   const shownJoins = joins.filter((j) => Date.parse(j.at) > cleared);
-  const empty = !update && !updated && todays.length === 0 && recent.length === 0 && shownJoins.length === 0;
-  function clearAll() { const now = new Date().toISOString(); setSetting('notifClearedAt', now); setClearedAt(now); }
+  const empty = todays.length === 0 && recent.length === 0 && shownJoins.length === 0;
+  function clearAll() {
+    confirm('Clear all notifications?', 'Today’s warnings come back tomorrow. New ones still show up.', [
+      { text: 'Clear all', destructive: true, onPress: () => { const now = new Date().toISOString(); setSetting('notifClearedAt', now); setClearedAt(now); } },
+    ]);
+  }
+  // Always-visible version status: bright when an update is waiting, soft once you're up to date.
+  const versionCard = update ? (
+    <Pressable onPress={applyUpdate} accessibilityRole="button" accessibilityLabel="Update to the new version">
+      <LinearGradient colors={['#E8506E', '#B8324B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <T style={{ fontSize: 30 }}>✨</T>
+        <View style={{ flex: 1 }}>
+          <T v="cardTitle" color={colors.white}>New version available</T>
+          <T v="caption" color="rgba(255,255,255,0.9)">You haven't updated yet. Tap to get the latest fixes and features.</T>
+        </View>
+        <View style={{ backgroundColor: colors.white, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}><T v="captionStrong" color={colors.strawberryStrong}>Update</T></View>
+      </LinearGradient>
+    </Pressable>
+  ) : (
+    <View style={{ borderRadius: 20, padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: '#F2EEEE', borderWidth: 1, borderColor: colors.border }}>
+      <Icon name="checkmark-circle" color={colors.textSecondary} size={28} />
+      <View style={{ flex: 1 }}>
+        <T v="captionStrong" color={colors.textSecondary}>You're on the latest version</T>
+        <T v="caption" color={colors.textSecondary}>{updated ? `Updated ${new Date(updatedAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'No update waiting.'}</T>
+      </View>
+    </View>
+  );
   return (
-    <Screen title="Notifications" back right={empty ? undefined : <Button kind="text" label="Clear all" onPress={clearAll} />}>
+    <Screen title="Notifications" back>
+      {versionCard}
+      {!empty && (
+        <Pressable onPress={clearAll} accessibilityRole="button" style={{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border }}>
+          <Icon name="trash-outline" size={16} color={colors.strawberryStrong} />
+          <T v="captionStrong" color={colors.strawberryStrong}>Clear all</T>
+        </Pressable>
+      )}
       {empty ? (
         <Empty icon="notifications-outline" title="You're all caught up" message="Warnings for today, new imports, group members and app updates will show here." />
       ) : (
         <>
-          {update && (
-            <Card style={{ gap: space.sm }}>
-              <Badge tone="success" label="Update available" />
-              <T>A new version of ScheduLens is ready, with the latest fixes and features. ✨</T>
-              <View style={{ alignItems: 'flex-end' }}><Button kind="text" label="Update now" onPress={applyUpdate} /></View>
-            </Card>
-          )}
-          {updated && (
-            <Card style={{ gap: space.sm }}>
-              <Badge tone="success" label="App updated" />
-              <T>ScheduLens was updated to the newest version. ✨</T>
-              <T v="caption" color={colors.textSecondary}>{new Date(updatedAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</T>
-            </Card>
-          )}
           {todays.length > 0 && <T v="section">Today</T>}
           {todays.map((i, n) => (
             <Card key={n} style={{ gap: space.sm }}>
