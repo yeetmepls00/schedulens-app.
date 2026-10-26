@@ -16,7 +16,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!_expo/|assets/|favicon\\.ico|metadata\\.json).*)",
+      "source": "/((?!_expo/|assets/|icons/|favicon\\.ico|metadata\\.json|manifest\\.webmanifest|sw\\.js).*)",
       "destination": "/index.html"
     }
   ]

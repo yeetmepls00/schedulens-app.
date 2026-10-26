@@ -2,6 +2,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { confirm } from '../lib/confirm';
+import { InstallApp } from '../components/install-app';
 import { Banner, Button, Card, Field, Screen, T } from '../components/ui';
 import { logOut } from '../lib/auth';
 import { deleteAllData, getSetting, setSetting } from '../data/db';
@@ -24,6 +25,7 @@ export default function Settings() {
         <T v="cardTitle">Profile</T>
         <Field label="Username" value={name} onChangeText={(v) => { setName(v); setSaved(false); }} helper="Shown to group members." />
       </Card>
+      <InstallApp />
       <Button kind="tonal" icon="options-outline" label="Schedule rules" onPress={() => router.push('/rules')} />
       <Button kind="tonal" icon="shield-checkmark-outline" label="Data & privacy" onPress={() => router.push('/privacy')} />
       <Button kind="tonal" icon="color-palette-outline" label="Timetable editor" onPress={() => router.push('/timetable')} />

@@ -95,6 +95,11 @@ const SECTIONS: Section[] = [
     'Reset or confirmation link says it expired: request a new email and use the newest one.',
     'Blank page inside Messenger or Facebook: tap the menu and choose Open in browser.',
   ] },
+  { id: 'install', title: '15. Add ScheduLens to your home screen', steps: [
+    'Android (Chrome): open Profile & Settings and tap Install ScheduLens, or open the browser menu and tap "Add to Home screen".',
+    'iPhone (Safari): tap the Share button, then "Add to Home Screen".',
+    'Open ScheduLens from the new icon. It runs full screen, like an app.',
+  ] },
 ];
 
 export default function Help() {
