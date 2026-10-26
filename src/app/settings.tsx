@@ -1,11 +1,11 @@
 // 4.5 Profile & Settings: account, alerts, calendar, data, and about. Changes save as you make them.
 import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, Switch, View } from 'react-native';
+import { Platform, Pressable, Switch, View } from 'react-native';
 import { Avatar, getAvatar, pickAvatar, removeAvatar } from '../components/avatar';
 import { InstallApp } from '../components/install-app';
 import { Banner, Button, Card, Chip, Field, Icon, type IconName, Screen, T } from '../components/ui';
-import { deleteAllData, getAlerts, getRules, getSetting, setSetting, type AlertKinds } from '../data/db';
+import { deleteAllData, exportBackup, importBackup, getAlerts, getRules, getSetting, setSetting, type AlertKinds } from '../data/db';
 import { deleteAccount, logOut, sendPasswordReset } from '../lib/auth';
 import { confirm } from '../lib/confirm';
 import { sb } from '../lib/groups';
@@ -79,6 +79,31 @@ export default function Settings() {
     if (!email) return;
     try { await sendPasswordReset(email); say('success', 'Check your email', `We sent a link to ${email} to set a new password.`); }
     catch (e) { say('error', 'Could not send the link', e instanceof Error ? e.message : 'Try again.'); }
+  }
+  function saveBackup() {
+    const blob = new Blob([exportBackup()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `schedulens-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    say('success', 'Backup saved', 'Open ScheduLens where you want your schedule, then tap Restore from backup and pick this file.');
+  }
+  function restoreBackup() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      confirm('Restore this backup?', 'Your events and files on this device will be replaced with the ones in the backup.', [
+        { text: 'Restore', onPress: () => {
+          try { const n = importBackup(text); say('success', 'Restored', `${n} ${n === 1 ? 'event' : 'events'} restored.`); }
+          catch (e) { say('error', 'Could not restore', e instanceof Error ? e.message : 'The file could not be read.'); }
+        } },
+      ]);
+    };
+    input.click();
   }
   function wipe() {
     confirm('Delete data on this device?', 'This removes every event and imported file from this device. Your account stays.', [
@@ -162,6 +187,10 @@ export default function Settings() {
       <Section title="Data & privacy">
         <RowBase icon="shield-checkmark-outline" label="Privacy" sub="What is shared and what stays on your device" onPress={() => router.push('/privacy')} />
         <RowBase icon="download-outline" label="Export my schedule" sub="Download an .ics file from the Vault" onPress={() => router.push('/vault')} />
+        {Platform.OS === 'web' && <>
+          <RowBase icon="cloud-download-outline" label="Save backup file" sub="Move your schedule from the browser to the app, or to another device" onPress={saveBackup} />
+          <RowBase icon="cloud-upload-outline" label="Restore from backup" sub="Open a backup file saved from ScheduLens" onPress={restoreBackup} />
+        </>}
         <RowBase icon="trash-outline" label="Delete data on this device" danger onPress={wipe} />
         <RowBase icon="person-remove-outline" label="Delete account" danger last onPress={removeAccount} />
       </Section>

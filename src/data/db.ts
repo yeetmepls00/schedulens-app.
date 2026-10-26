@@ -218,3 +218,30 @@ export const getRules = (): IssueRules => getSetting('rules', DEFAULT_RULES);
 /** Which kinds of warnings the person wants to see (Settings > Alerts). */
 export type AlertKinds = { overlap: boolean; travel: boolean; workload: boolean };
 export const getAlerts = (): AlertKinds => ({ overlap: true, travel: true, workload: true, ...getSetting<Partial<AlertKinds>>('alerts', {}) });
+
+// --- Backup ------------------------------------------------------------------
+// Moves the schedule between a browser and the installed app (which keep
+// separate storage on iPhone) as a file the person saves and opens themselves.
+const BACKUP_TABLES = ['events', 'files', 'settings'] as const;
+
+export function exportBackup(): string {
+  const data: Record<string, unknown[]> = {};
+  for (const t of BACKUP_TABLES) data[t] = db.getAllSync(`SELECT * FROM ${t}`);
+  return JSON.stringify({ app: 'schedulens', version: 1, savedAt: new Date().toISOString(), data });
+}
+
+/** Replaces this device's events and files with the backup's, and adds its settings. Returns the event count. */
+export function importBackup(text: string): number {
+  const b = JSON.parse(text);
+  if (b?.app !== 'schedulens' || !b.data) throw new Error('This is not a ScheduLens backup file.');
+  db.execSync('DELETE FROM events; DELETE FROM files;');
+  for (const t of BACKUP_TABLES) {
+    for (const r of (b.data[t] ?? []) as Record<string, unknown>[]) {
+      const cols = Object.keys(r).filter((c) => /^\w+$/.test(c));
+      if (!cols.length) continue;
+      db.runSync(`INSERT OR REPLACE INTO ${t} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...cols.map((c) => r[c] as string | number | null));
+    }
+  }
+  changed();
+  return (b.data.events ?? []).length;
+}
