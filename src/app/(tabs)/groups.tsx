@@ -10,7 +10,8 @@ import { Image, Platform, View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Icon, Screen, T } from '../../components/ui';
 import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
-import { loadGroupInfo, loadGroupSummary, setGroupDescription } from '../../lib/groups';
+import { loadGroupInfo, loadGroupSummary, removeMember, setGroupDescription } from '../../lib/groups';
+import { confirm } from '../../lib/confirm';
 import { getGroupLook } from '../../lib/group-look';
 import { GroupBackdrop, GroupListCard, GroupLookEditor, MemberBubbles } from '../../components/group-card';
 import { addActivity, createGroup, deleteActivity, groupsConfigured, leaveGroup, loadActivities, loadMembers, nextDateFor, saveGroups, savedGroups, shareBusy, type Activity, type Group, type MemberBusy } from '../../lib/groups';
@@ -43,7 +44,7 @@ export default function Groups() {
   }
   const [busy, setBusy] = useState(false);
   const [desc, setDesc] = useState('');
-  const [info, setInfo] = useState<{ description: string; isOwner: boolean } | null>(null);
+  const [info, setInfo] = useState<{ description: string; isOwner: boolean; ownerId?: string } | null>(null);
   const [editDesc, setEditDesc] = useState<string | null>(null);
   const [styling, setStyling] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -112,7 +113,7 @@ export default function Groups() {
               <Field label="Description (optional)" value={editDesc} onChangeText={(v) => setEditDesc(v.slice(0, 200))} placeholder="e.g. Our thesis group for 4th year" />
               <View style={{ flexDirection: 'row', gap: space.md }}>
                 <Button kind="secondary" label="Cancel" style={{ flex: 1 }} onPress={() => setEditDesc(null)} />
-                <Button label="Save" style={{ flex: 1 }} loading={busy} onPress={() => run(async () => { await setGroupDescription(open.id, editDesc); setInfo({ description: editDesc.trim(), isOwner: true }); setEditDesc(null); })} />
+                <Button label="Save" style={{ flex: 1 }} loading={busy} onPress={() => run(async () => { await setGroupDescription(open.id, editDesc); setInfo({ ...info!, description: editDesc.trim() }); setEditDesc(null); })} />
               </View>
             </>
           ) : info?.description ? (
@@ -120,6 +121,19 @@ export default function Groups() {
           ) : info?.isOwner ? <T v="caption" color={colors.textSecondary}>No description yet.</T> : null}
           {info?.isOwner && editDesc === null && <Button kind="text" icon="create-outline" label={info.description ? 'Edit description' : 'Add description'} style={{ alignSelf: 'flex-start' }} onPress={() => setEditDesc(info.description)} />}
           <MemberBubbles names={members.map((m) => m.displayName)} accent={getGroupLook(open.id).accent} max={12} />
+          {info?.isOwner && members.some((m) => m.userId !== info.ownerId) && (
+            <View style={{ gap: 2 }}>
+              <T v="captionStrong" color={colors.textSecondary}>Manage members</T>
+              {members.filter((m) => m.userId !== info.ownerId).map((m) => (
+                <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <T style={{ flex: 1 }} lines={1}>{m.displayName}</T>
+                  <Button kind="text" label="Remove" onPress={() => confirm(`Remove ${m.displayName}?`, 'They leave the group and their busy times are deleted. They can rejoin with the invite code.', [
+                    { text: 'Remove', destructive: true, onPress: () => run(async () => { await removeMember(open.id, m.userId); setMembers(await loadMembers(open.id)); }) },
+                  ])} />
+                </View>
+              ))}
+            </View>
+          )}
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Button kind="secondary" label="Invite" icon="person-add-outline" style={{ flex: 1 }}
               onPress={() => router.push({ pathname: '/invite', params: { name: open.name, code: open.code, expiresAt: open.expiresAt } })} />

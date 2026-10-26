@@ -14,8 +14,8 @@ export const Icon = ({ name, size = 22, color = colors.text }: { name: IconName;
 );
 
 /** Full screen with the strawberry matcha gradient, a header, and scrolling content. */
-export function Screen({ title, back, right, children, footer, scroll = true, plain }: {
-  title?: string; back?: boolean; right?: ReactNode; children: ReactNode; footer?: ReactNode; scroll?: boolean;
+export function Screen({ title, back, left, right, children, footer, scroll = true, plain }: {
+  title?: string; back?: boolean; left?: ReactNode; right?: ReactNode; children: ReactNode; footer?: ReactNode; scroll?: boolean;
   /** Transparent header bar (onboarding and sign-in screens). */
   plain?: boolean;
 }) {
@@ -31,6 +31,7 @@ export function Screen({ title, back, right, children, footer, scroll = true, pl
                   <Icon name="arrow-back" />
                 </Pressable>
               )}
+              {left}
             </View>
             <Text style={[type.screenTitle, { color: colors.text, flex: 1, textAlign: 'center' }]} numberOfLines={1}>{title}</Text>
             <View style={[s.headerSide, { alignItems: 'flex-end' }]}>{right}</View>
@@ -193,7 +194,7 @@ export const Empty = ({ icon, title, message, action, onAction }: { icon: IconNa
 
 export const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.header, paddingHorizontal: space.sm, height: 60 },
-  headerSide: { width: TOUCH, justifyContent: 'center' },
+  headerSide: { minWidth: TOUCH, width: 88, justifyContent: 'center' },
   iconBtn: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: space.xl, paddingBottom: 34, backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, flexDirection: 'row', gap: space.md },
   btn: { minHeight: TOUCH, borderRadius: radius.button, paddingHorizontal: space.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },

@@ -92,6 +92,11 @@ export async function loadMembers(groupId: string): Promise<MemberBusy[]> {
   }));
 }
 
+export async function removeMember(groupId: string, userId: string) {
+  const { error } = await sb().rpc('remove_member', { gid: groupId, uid: userId });
+  if (error) throw error;
+}
+
 export async function leaveGroup(groupId: string) {
   const { error } = await sb().rpc('leave_group', { gid: groupId });
   if (error) throw error;
@@ -136,13 +141,13 @@ export function nextDateFor(weekday: number) {
 }
 
 /** The group's optional description, and whether you created the group (only the creator can edit it). */
-export async function loadGroupInfo(groupId: string): Promise<{ description: string; isOwner: boolean }> {
+export async function loadGroupInfo(groupId: string): Promise<{ description: string; isOwner: boolean; ownerId?: string }> {
   const [{ data, error }, { data: me }] = await Promise.all([
     sb().from('groups').select('description, owner').eq('id', groupId).single(),
     sb().auth.getUser(),
   ]);
   if (error) throw error;
-  return { description: data?.description ?? '', isOwner: !!me.user && data?.owner === me.user.id };
+  return { description: data?.description ?? '', isOwner: !!me.user && data?.owner === me.user.id, ownerId: data?.owner };
 }
 
 export async function setGroupDescription(groupId: string, description: string) {

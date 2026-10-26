@@ -43,15 +43,12 @@ export default function Calendar() {
       <View style={{ flex: 1, opacity: picked.has(e.id) ? 1 : 0.85 }} pointerEvents="none"><EventCard event={e} issue={issueFor(e.id)} onPress={() => toggle(e.id)} /></View>
     </Pressable>
   ) : <EventCard key={e.id} event={e} issue={issueFor(e.id)} onPress={() => router.push(`/event/${e.id}`)} />;
-  const add = (
-    <View style={{ flexDirection: 'row' }}>
-      {events.length > 0 && canSelect && <Button label={selecting ? 'Cancel' : 'Select'} kind="text" onPress={() => (selecting ? stop() : setSelecting(true))} />}
-      {!selecting && <Button label="Add" kind="text" icon="add" onPress={() => router.push('/event/new')} />}
-    </View>
-  );
+  const add = !selecting ? <Button label="Add" kind="text" icon="add" onPress={() => router.push('/event/new')} /> : null;
+  const select = events.length > 0 && canSelect
+    ? <Button label={selecting ? 'Done' : 'Select'} kind="text" onPress={() => (selecting ? stop() : setSelecting(true))} /> : null;
 
   return (
-    <Screen title="Calendar" right={add} footer={selecting ? (
+    <Screen title="Calendar" left={select} right={add} footer={selecting ? (
       <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
         <T v="captionStrong" style={{ flex: 1 }}>{picked.size} selected</T>
         <Button kind="secondary" label="Cancel" onPress={stop} />
