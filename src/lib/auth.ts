@@ -124,6 +124,16 @@ export async function checkConfirmed(): Promise<boolean> {
   return true;
 }
 
+/** Confirms the email with the 6-digit code from the email, without leaving this page. */
+export async function confirmWithCode(code: string): Promise<void> {
+  if (!pending) throw new Error('Log in to get a new confirmation email.');
+  const { data, error } = await sb().auth.verifyOtp({ email: pending.email, token: code.replace(/\D/g, ''), type: 'signup' });
+  if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or has expired. Check the email or tap Resend email.' : friendly(error.message));
+  if (!isConfirmed(data.session)) throw new Error('Could not confirm yet. Try again.');
+  pending = null;
+  setVerified(true);
+}
+
 export async function resendConfirmation() {
   if (!pending) throw new Error('Log in to get a new confirmation email.');
   const next = peekNext();

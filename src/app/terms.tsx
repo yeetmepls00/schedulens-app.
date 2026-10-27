@@ -4,8 +4,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { AuthShell } from '../components/brand';
-import { Button, Checkbox, Icon, T, type IconName } from '../components/ui';
-import { acceptTermsAndFinish, checkConfirmed, hasPendingSignUp, pendingEmail, resendConfirmation, takeNext, useVerified } from '../lib/auth';
+import { Button, Checkbox, Field, Icon, T, type IconName } from '../components/ui';
+import { acceptTermsAndFinish, checkConfirmed, confirmWithCode, hasPendingSignUp, pendingEmail, resendConfirmation, takeNext, useVerified } from '../lib/auth';
 import { colors, space } from '../theme/tokens';
 
 const ITEMS: [IconName, string, string][] = [
@@ -20,6 +20,13 @@ export default function Terms() {
   const verified = useVerified();
   const [agree, setAgree] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
+  async function useCode() {
+    setCodeBusy(true); setNote(null);
+    try { await confirmWithCode(code); } catch (e) { setNote(e instanceof Error ? e.message : String(e)); }
+    finally { setCodeBusy(false); }
+  }
 
   // While the email is unconfirmed, check every few seconds and whenever this
   // tab comes back into view or the confirmation tab says it is done, so this
@@ -65,7 +72,7 @@ export default function Terms() {
           </View>
           <T center>
             {hasPendingSignUp()
-              ? <>We sent a confirmation link to <T v="label">{pendingEmail()}</T>. Open it to continue. This page moves on by itself.</>
+              ? <>We sent a confirmation link to <T v="label">{pendingEmail()}</T>. Tap the link, or type the code from the email below. This page moves on by itself.</>
               : 'Open the confirmation link in the email we sent you, then log in.'}
           </T>
           {hasPendingSignUp() ? (
@@ -73,6 +80,12 @@ export default function Terms() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <ActivityIndicator size="small" color={colors.strawberryStrong} />
                 <T v="caption" color={colors.textSecondary}>Waiting for confirmation…</T>
+              </View>
+              <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-end', alignSelf: 'stretch' }}>
+                <View style={{ flex: 1 }}>
+                  <Field label="Code from the email" value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 8))} keyboardType="number-pad" placeholder="123456" autoComplete="one-time-code" />
+                </View>
+                <Button label="Confirm" loading={codeBusy} disabled={code.length < 6} onPress={useCode} />
               </View>
               <View style={{ flexDirection: 'row', gap: space.lg }}>
                 <Pressable onPress={resend} accessibilityRole="button" hitSlop={12}>
