@@ -1,16 +1,19 @@
 // 4.3 Join Group. Shows the group and exactly what you will share before you join.
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../lib/nav';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { View } from 'react-native';
 import { Banner, Button, Card, Icon, Screen, T } from '../components/ui';
+import { thisWeek } from '../lib/repeat';
 import { getSetting, useEvents } from '../data/db';
 import { joinGroup, previewGroup, saveGroups, savedGroups } from '../lib/groups';
 import { colors, space } from '../theme/tokens';
 
 export default function Join() {
   const { code } = useLocalSearchParams<{ code: string }>();
-  const events = useEvents();
+  const allEvents = useEvents();
+  const events = useMemo(() => thisWeek(allEvents), [allEvents]);
+
   const name = getSetting('displayName', '');
   const [info, setInfo] = useState<{ name: string; memberCount: number; expiresAt: string } | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 // Local storage on the phone (SQLite). Your personal schedule never leaves
 // the device unless you export it or share free/busy times with a group.
 import * as SQLite from 'expo-sqlite';
+import { canChange } from '../lib/online';
 import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import type { ScheduleEvent, Weekday } from '../lib/types';
@@ -70,7 +71,7 @@ async function copyOldWebDatabase() {
 
 // Columns added after the first release. Added in place so existing
 // schedules are kept (older databases simply get the new, empty columns).
-const NEW_COLUMNS = [['course_code', 'TEXT'], ['notes', 'TEXT']] as const;
+const NEW_COLUMNS = [['course_code', 'TEXT'], ['notes', 'TEXT'], ['repeat', 'TEXT'], ['on_date', 'TEXT']] as const;
 function migrate() {
   const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(events)').map((c) => c.name);
   for (const [name, kind] of NEW_COLUMNS) if (!cols.includes(name)) db.execSync(`ALTER TABLE events ADD COLUMN ${name} ${kind}`);
@@ -97,7 +98,7 @@ export interface SavedFile {
 type EventRow = {
   id: string; title: string; weekday: number; start_min: number; end_min: number;
   location: string | null; organizer: string | null; source_file_id: string | null;
-  course_code?: string | null; notes?: string | null;
+  course_code?: string | null; notes?: string | null; repeat?: string | null; on_date?: string | null;
 };
 
 const fromRow = (r: EventRow): ScheduleEvent => ({
@@ -111,6 +112,8 @@ const fromRow = (r: EventRow): ScheduleEvent => ({
   sourceFileId: r.source_file_id ?? undefined,
   courseCode: r.course_code ?? undefined,
   notes: r.notes ?? undefined,
+  repeat: (r.repeat as ScheduleEvent['repeat']) ?? undefined,
+  date: r.on_date ?? undefined,
 });
 
 export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -143,10 +146,10 @@ export const useEvents = () => useSyncExternalStore(subscribe, () => snapshot().
 export const useFiles = () => useSyncExternalStore(subscribe, () => snapshot().files);
 
 // --- Events ------------------------------------------------------------------
-const INSERT_EVENT = `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id, course_code, notes)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+const INSERT_EVENT = `INSERT OR REPLACE INTO events (id, title, weekday, start_min, end_min, location, organizer, source_file_id, course_code, notes, repeat, on_date)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 const eventValues = (e: ScheduleEvent) => [
-  e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, e.sourceFileId ?? null, e.courseCode ?? null, e.notes ?? null,
+  e.id, e.title, e.weekday, e.startMin, e.endMin, e.location ?? null, e.organizer ?? null, e.sourceFileId ?? null, e.courseCode ?? null, e.notes ?? null, e.repeat ?? null, e.date ?? null,
 ] as const;
 
 export function getEvent(id: string): ScheduleEvent | undefined {
@@ -155,6 +158,7 @@ export function getEvent(id: string): ScheduleEvent | undefined {
 }
 
 export function saveEvent(e: ScheduleEvent) {
+  if (!canChange()) return;
   db.runSync(
     INSERT_EVENT, ...eventValues(e),
   );
@@ -166,6 +170,7 @@ export function saveEvent(e: ScheduleEvent) {
  * `events` is written, and only the ids in `deletedIds` are removed.
  */
 export function saveEditorChanges(events: ScheduleEvent[], deletedIds: string[]) {
+  if (!canChange()) return;
   db.withTransactionSync(() => {
     for (const id of deletedIds) db.runSync('DELETE FROM events WHERE id = ?', id);
     for (const e of events) db.runSync(INSERT_EVENT, ...eventValues(e));
@@ -174,12 +179,14 @@ export function saveEditorChanges(events: ScheduleEvent[], deletedIds: string[])
 }
 
 export function deleteEvent(id: string) {
+  if (!canChange()) return;
   db.runSync('DELETE FROM events WHERE id = ?', id);
   changed();
 }
 
 /** Saves a verified import in one transaction, so a failure saves nothing. */
 export function saveImport(file: Omit<SavedFile, 'eventCount' | 'createdAt'>, events: ScheduleEvent[]) {
+  if (!canChange()) return;
   db.withTransactionSync(() => {
     db.runSync(
       'INSERT OR REPLACE INTO files (id, name, uri, kind, created_at, event_count) VALUES (?, ?, ?, ?, ?, ?)',
@@ -193,6 +200,7 @@ export function saveImport(file: Omit<SavedFile, 'eventCount' | 'createdAt'>, ev
 }
 
 export function deleteFile(id: string, alsoEvents: boolean) {
+  if (!canChange()) return;
   db.withTransactionSync(() => {
     if (alsoEvents) db.runSync('DELETE FROM events WHERE source_file_id = ?', id);
     db.runSync('DELETE FROM files WHERE id = ?', id);
@@ -232,6 +240,7 @@ export function exportBackup(): string {
 
 /** Replaces this device's events and files with the backup's, and adds its settings. Returns the event count. */
 export function importBackup(text: string): number {
+  if (!canChange()) throw new Error("You're offline. Restore again when you're back online.");
   const b = JSON.parse(text);
   if (b?.app !== 'schedulens' || !b.data) throw new Error('This is not a ScheduLens backup file.');
   db.execSync('DELETE FROM events; DELETE FROM files;');

@@ -7,6 +7,8 @@ import { EventCard } from '../../components/EventCard';
 import { Banner, Button, Chip, Empty, Icon, Screen, Segmented, T } from '../../components/ui';
 import { deleteEvent, getSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
+import { occursOn } from '../../lib/repeat';
+import { exportTimetablePdf, exportTimetablePng } from '../../lib/export-timetable';
 import { nextEvent } from '../../lib/next';
 import { colorFor, DEFAULT_STYLE, textOn, type TimetableStyle } from '../../lib/timetable';
 import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime } from '../../lib/time';
@@ -21,7 +23,7 @@ const START = 7 * 60;
 const END = 21 * 60;
 
 export default function Calendar() {
-  const { events, issueFor, issues } = useSchedule();
+  const { events, all, issueFor, issues } = useSchedule();
   const [view, setView] = useState<View_>(() => getSetting<View_>('defaultView', 'day'));
   const [day, setDay] = useState<Weekday>(new Date().getDay() as Weekday);
   // Select mode: tick events, then delete them together.
@@ -57,7 +59,7 @@ export default function Calendar() {
       </View>
     ) : undefined}>
       <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ key: 'day', label: 'Day' }, { key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'list', label: 'List' }, { key: 'heatmap', label: 'Heatmap' }]} />
-      {events.length === 0 ? (
+      {all.length === 0 ? (
         <Empty icon="calendar-outline" title="Your calendar is empty" message="Import a schedule or add an event." action="Add event" onAction={() => router.push('/event/new')} />
       ) : view === 'day' ? (
         <>
@@ -69,9 +71,12 @@ export default function Calendar() {
           <FreeDay events={events} day={day} label={DAY_NAMES[day]} issueFor={issueFor} />
         </>
       ) : view === 'week' ? (
-        <WeekGrid events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} />
+        <>
+          <WeekGrid events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} />
+          <SaveTimetable events={events} />
+        </>
       ) : view === 'month' ? (
-        <MonthView card={card} events={events} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} issueFor={issueFor} />
+        <MonthView card={card} events={all} conflictIds={new Set(issues.filter((i) => i.kind === 'overlap').flatMap((i) => i.eventIds))} issueFor={issueFor} />
       ) : view === 'list' ? (
         WEEK.filter((d) => events.some((e) => e.weekday === d)).map((d) => (
           <View key={d} style={{ gap: space.sm }}>
@@ -184,7 +189,7 @@ function MonthView({ card, events, conflictIds, issueFor }: { card: (e: Schedule
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const cells = Array.from({ length: 42 }, (_, i) => new Date(month.getFullYear(), month.getMonth(), 1 - first.getDay() + i));
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  const dayEvents = (d: Date) => events.filter((e) => e.weekday === d.getDay());
+  const dayEvents = (d: Date) => events.filter((e) => occursOn(e, d));
   const shift = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
   const label = month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   return (
@@ -246,5 +251,34 @@ function FreeDay({ events, day, label, issueFor }: { events: ScheduleEvent[]; da
         </>
       )}
     </>
+  );
+}
+
+/** Saves this week's timetable as a photo or a PDF, in the person's timetable colors. */
+function SaveTimetable({ events }: { events: ScheduleEvent[] }) {
+  const [busy, setBusy] = useState<'png' | 'pdf' | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  async function go(kind: 'png' | 'pdf') {
+    setBusy(kind); setMsg(null);
+    try {
+      const style = { ...DEFAULT_STYLE, ...getSetting<Partial<TimetableStyle>>('timetableStyle', {}) };
+      const name = getSetting('displayName', '');
+      const title = name ? `${name}'s weekly timetable` : 'My weekly timetable';
+      const done = await (kind === 'png' ? exportTimetablePng : exportTimetablePdf)(events, style, title);
+      if (done) setMsg({ ok: true, text: kind === 'png' ? 'Photo saved.' : 'PDF saved.' });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Could not save. Try again.' });
+    } finally { setBusy(null); }
+  }
+  return (
+    <View style={{ backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.lg, gap: space.sm }}>
+      <T v="cardTitle">📥 Save your timetable</T>
+      <T v="caption" color={colors.textSecondary}>Download this week as a photo or a PDF, in your timetable's colors.</T>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <Button kind="secondary" icon="image-outline" label="Photo" style={{ flex: 1 }} loading={busy === 'png'} disabled={!!busy} onPress={() => go('png')} />
+        <Button kind="secondary" icon="document-outline" label="PDF" style={{ flex: 1 }} loading={busy === 'pdf'} disabled={!!busy} onPress={() => go('pdf')} />
+      </View>
+      {msg && <T v="caption" color={msg.ok ? colors.textSecondary : colors.error}>{msg.text}</T>}
+    </View>
   );
 }

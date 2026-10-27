@@ -5,9 +5,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { QrScanner } from '../../components/qr-scanner';
 import { codeFromQr, readQrFromImage } from '../../lib/qr';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Image, Platform, View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Icon, Screen, T } from '../../components/ui';
+import { thisWeek } from '../../lib/repeat';
 import { getSetting, useEvents } from '../../data/db';
 import { findFreeSlots } from '../../lib/freeTime';
 import { loadGroupInfo, loadGroupSummary, removeMember, setGroupDescription } from '../../lib/groups';
@@ -20,7 +21,9 @@ import type { Weekday } from '../../lib/types';
 import { colors, space } from '../../theme/tokens';
 
 export default function Groups() {
-  const events = useEvents();
+  const allEvents = useEvents();
+  const events = useMemo(() => thisWeek(allEvents), [allEvents]);
+
   const [groups, setGroups] = useState<Group[]>(savedGroups);
   const params = useLocalSearchParams<{ open?: string }>();
   const [open, setOpen] = useState<Group | null>(null);

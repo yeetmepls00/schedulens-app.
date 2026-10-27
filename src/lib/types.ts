@@ -19,6 +19,10 @@ export interface ScheduleEvent {
   courseCode?: string;
   /** The student's own notes for this class. */
   notes?: string;
+  /** How often it happens. Missing means every week. */
+  repeat?: 'once' | 'daily' | 'weekly' | 'monthly';
+  /** For one-time and monthly events: the (first) date, as YYYY-MM-DD. */
+  date?: string;
 }
 
 /** How sure the OCR parser is about one extracted value. */

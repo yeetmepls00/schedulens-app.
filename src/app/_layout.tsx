@@ -1,4 +1,5 @@
 import { Redirect, router, Stack, usePathname } from 'expo-router';
+import { useOnline } from '../lib/online';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -49,6 +50,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider style={{ flex: 1 }}>
       <StatusBar style="dark" />
+      <OfflineBar />
       <Stack screenOptions={{ headerShown: false }} />
       <Guard />
     </SafeAreaProvider>
@@ -74,6 +76,19 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
       <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>Something went wrong</Text>
       <Text selectable style={{ fontSize: 13, color: '#555', textAlign: 'center', marginBottom: 16 }}>{String(error?.message ?? error)}</Text>
       <Text onPress={retry} style={{ fontSize: 16, color: '#C0395A', fontWeight: '600' }}>Try again</Text>
+    </View>
+  );
+}
+
+/** A slim strip while offline: the app still opens, but only for viewing. */
+function OfflineBar() {
+  const online = useOnline();
+  if (online) return null;
+  return (
+    <View accessibilityRole="alert" style={{ backgroundColor: '#3A2A2C', paddingVertical: 6, paddingHorizontal: 16 }}>
+      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center', fontFamily: 'Nunito, system-ui, sans-serif' }}>
+        You're offline · View only until you're back online
+      </Text>
     </View>
   );
 }

@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native';
+import { repeatLine } from '../lib/repeat';
 import type { ScheduleEvent, ScheduleIssue } from '../lib/types';
 import { formatTime } from '../lib/time';
 import { colors, radius, space } from '../theme/tokens';
@@ -25,6 +26,12 @@ export function EventCard({ event, issue, onPress }: { event: ScheduleEvent; iss
           <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
             <Icon name="location-outline" size={14} color={colors.textSecondary} />
             <T v="caption" color={colors.textSecondary}>{event.location}</T>
+          </View>
+        ) : null}
+        {repeatLine(event) ? (
+          <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+            <Icon name="repeat" size={14} color={colors.textSecondary} />
+            <T v="caption" color={colors.textSecondary}>{repeatLine(event)}</T>
           </View>
         ) : null}
         {event.organizer ? (

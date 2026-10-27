@@ -12,6 +12,8 @@ import { DEFAULT_STYLE, type TimetableStyle } from '../../lib/timetable';
 import { findIssues } from '../../lib/conflicts';
 import { DAY_NAMES, DAY_SHORT, formatTime, parseTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
+import { REPEAT_LABEL, isoDate, parseIso, type Repeat } from '../../lib/repeat';
+import { DateInput } from '../../components/date-input';
 import { colors, space } from '../../theme/tokens';
 
 const SWATCHES = ['#E63946', '#F4A261', '#E9C46A', '#2A9D8F', '#43AA8B', '#4D96FF', '#5E60CE', '#B5179E', '#FF85A1', '#8D6E63'];
@@ -22,6 +24,10 @@ export default function EventForm() {
   const old = isNew ? undefined : getEvent(id);
   const all = useEvents();
   const [title, setTitle] = useState(old?.title ?? '');
+  // Like an alarm: one time, every day, every week (default) or every month.
+  const [repeat, setRepeat] = useState<Repeat>(old?.repeat ?? 'weekly');
+  const [date, setDate] = useState(old?.date ?? isoDate(new Date()));
+  const dated = repeat === 'once' || repeat === 'monthly';
   const [weekday, setWeekday] = useState<Weekday | undefined>(old?.weekday);
   // New events can repeat on a run of days: tap a start day, then an end day.
   const [rangeEnd, setRangeEnd] = useState<Weekday | undefined>();
@@ -44,14 +50,16 @@ export default function EventForm() {
   const s = parseTime(start)?.minutes, e = parseTime(end)?.minutes;
   const errors: Record<string, string> = {};
   if (!title.trim()) errors.title = 'Add a title';
-  if (weekday === undefined) errors.weekday = 'Pick a day';
+  if (!dated && repeat !== 'daily' && weekday === undefined) errors.weekday = 'Pick a day';
+  if (dated && !/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.date = 'Pick a date';
   if (s === undefined) errors.start = 'Use a time like 9:00 AM';
   if (e === undefined) errors.end = 'Use a time like 10:30 AM';
   if (s !== undefined && e !== undefined && e <= s) errors.end = 'End must be after start';
   const valid = Object.keys(errors).length === 0;
   const eventId = old?.id ?? 'pending';
 
-  const candidate = valid ? { id: eventId, title: title.trim(), weekday: weekday!, startMin: s!, endMin: e!, location: location.trim() || undefined, organizer: organizer.trim() || undefined, sourceFileId: old?.sourceFileId, courseCode: courseCode.trim() || undefined, notes: notes.trim() || undefined } : undefined;
+  const dayOf: Weekday | undefined = dated && !errors.date ? (parseIso(date).getDay() as Weekday) : repeat === 'daily' ? (weekday ?? 1) : weekday;
+  const candidate = valid ? { id: eventId, title: title.trim(), weekday: dayOf!, repeat: repeat === 'weekly' ? undefined : repeat, date: dated ? date : undefined, startMin: s!, endMin: e!, location: location.trim() || undefined, organizer: organizer.trim() || undefined, sourceFileId: old?.sourceFileId, courseCode: courseCode.trim() || undefined, notes: notes.trim() || undefined } : undefined;
   const live = candidate ? findIssues([...all.filter((x) => x.id !== eventId), candidate], getRules()).filter((i) => i.eventIds.includes(eventId)) : [];
 
   function save() {
@@ -64,7 +72,9 @@ export default function EventForm() {
       setSetting('timetableStyle', { ...st, subjectColors });
     }
     if (old) saveEvent({ ...candidate, id: old.id });
-    else for (const d of days) saveEvent({ ...candidate, weekday: d, id: newId() });
+    else if (dated) saveEvent({ ...candidate, id: newId() });
+    // Every day is saved as one event per day, so each day can be edited on its own.
+    else for (const d of repeat === 'daily' ? ORDER : days) saveEvent({ ...candidate, weekday: d, id: newId() });
     goBack('/calendar');
   }
   function remove() {
@@ -91,6 +101,25 @@ export default function EventForm() {
       </View>
       <Field label="Course code (optional)" value={courseCode} onChangeText={setCourseCode} placeholder="e.g. IT 311" />
       <View style={{ gap: 6 }}>
+        <T v="label">How often?</T>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {(['once', 'daily', 'weekly', 'monthly'] as Repeat[]).map((r) => (
+            <Chip key={r} label={REPEAT_LABEL[r]} on={repeat === r} onPress={() => setRepeat(r)} />
+          ))}
+        </View>
+      </View>
+      {dated && (
+        <View style={{ gap: 6 }}>
+          <T v="label">{repeat === 'once' ? 'Date' : 'Starting on'}</T>
+          <DateInput value={date} onChange={setDate} />
+          {!errors.date && <T v="caption" color={colors.textSecondary}>{repeat === 'once'
+            ? `Only on ${parseIso(date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}`
+            : `Every month on day ${parseIso(date).getDate()}, from ${parseIso(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`}</T>}
+          {err('date') && <Badge tone="error" label={errors.date} />}
+        </View>
+      )}
+      {repeat === 'daily' && <T v="caption" color={colors.textSecondary}>{isNew ? 'Adds this to every day, Monday to Sunday.' : 'Repeats every day.'}</T>}
+      {!dated && repeat !== 'daily' && <View style={{ gap: 6 }}>
         <T v="label">{isNew ? 'Days' : 'Day'}</T>
         {isNew && <T v="caption" color={colors.textSecondary}>Tap one day, or tap a start day then an end day (e.g. Mon, then Fri).</T>}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -98,7 +127,7 @@ export default function EventForm() {
         </View>
         {isNew && days.length > 1 && <T v="caption" color={colors.textSecondary}>Repeats {DAY_NAMES[days[0]]} to {DAY_NAMES[days[days.length - 1]]} ({days.length} days)</T>}
         {err('weekday') && <Badge tone="error" label={errors.weekday} />}
-      </View>
+      </View>}
       <View style={{ flexDirection: 'row', gap: space.md }}>
         <View style={{ flex: 1 }}><Field label="Start" value={start} onChangeText={setStart} error={err('start')} placeholder="9:00 AM" /></View>
         <View style={{ flex: 1 }}><Field label="End" value={end} onChangeText={setEnd} error={err('end')} placeholder="10:30 AM" /></View>
