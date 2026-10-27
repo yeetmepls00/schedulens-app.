@@ -5,7 +5,7 @@ import { Pressable, View } from 'react-native';
 import { confirm } from '../../lib/confirm';
 import { EventCard } from '../../components/EventCard';
 import { Banner, Button, Chip, Empty, Icon, Screen, Segmented, T } from '../../components/ui';
-import { deleteEvent, getSetting } from '../../data/db';
+import { deleteEvent, getSetting, setSetting } from '../../data/db';
 import { useSchedule } from '../../data/hooks';
 import { occursOn } from '../../lib/repeat';
 import { exportTimetablePdf, exportTimetablePng } from '../../lib/export-timetable';
@@ -265,7 +265,10 @@ function SaveTimetable({ events }: { events: ScheduleEvent[] }) {
       const name = getSetting('displayName', '');
       const title = name ? `${name}'s weekly timetable` : 'My weekly timetable';
       const done = await (kind === 'png' ? exportTimetablePng : exportTimetablePdf)(events, style, title);
-      if (done) setMsg({ ok: true, text: kind === 'png' ? 'Photo saved.' : 'PDF saved.' });
+      if (done) {
+        setMsg({ ok: true, text: kind === 'png' ? 'Downloaded successfully! Your timetable photo is saved.' : 'Downloaded successfully! Your timetable PDF is saved.' });
+        setSetting('downloads', [...getSetting<{ at: string; kind: string }[]>('downloads', []).slice(-19), { at: new Date().toISOString(), kind }]);
+      }
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : 'Could not save. Try again.' });
     } finally { setBusy(null); }
@@ -278,7 +281,7 @@ function SaveTimetable({ events }: { events: ScheduleEvent[] }) {
         <Button kind="secondary" icon="image-outline" label="Photo" style={{ flex: 1 }} loading={busy === 'png'} disabled={!!busy} onPress={() => go('png')} />
         <Button kind="secondary" icon="document-outline" label="PDF" style={{ flex: 1 }} loading={busy === 'pdf'} disabled={!!busy} onPress={() => go('pdf')} />
       </View>
-      {msg && <T v="caption" color={msg.ok ? colors.textSecondary : colors.error}>{msg.text}</T>}
+      {msg && <Banner tone={msg.ok ? 'success' : 'error'} title={msg.ok ? 'Downloaded successfully' : 'Could not save'} message={msg.ok ? msg.text.replace('Downloaded successfully! ', '') : msg.text} />}
     </View>
   );
 }

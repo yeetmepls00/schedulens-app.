@@ -26,6 +26,7 @@ export default function Notifications() {
   const todays = clearedToday ? [] : issues.filter((i) => i.weekday === today);
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const recent = files.filter((f) => Date.parse(f.createdAt) >= Math.max(weekAgo, cleared));
+  const downloads = getSetting<{ at: string; kind: 'png' | 'pdf' }[]>('downloads', []).filter((d) => Date.parse(d.at) >= Math.max(weekAgo, cleared)).reverse();
   const updatedAt = getSetting<string>('updatedAt', '');
   const updated = !!updatedAt && Date.parse(updatedAt) > cleared;
   // New members in your groups from the past week. Opening this screen marks them as seen.
@@ -37,7 +38,7 @@ export default function Notifications() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const update = useUpdateReady();
   const shownJoins = joins.filter((j) => Date.parse(j.at) > cleared);
-  const empty = todays.length === 0 && recent.length === 0 && shownJoins.length === 0;
+  const empty = todays.length === 0 && recent.length === 0 && shownJoins.length === 0 && downloads.length === 0;
   function clearAll() {
     confirm('Clear all notifications?', 'Today’s warnings come back tomorrow. New ones still show up.', [
       { text: 'Clear all', destructive: true, onPress: () => { const now = new Date().toISOString(); setSetting('notifClearedAt', now); setClearedAt(now); } },
@@ -94,7 +95,14 @@ export default function Notifications() {
               <View style={{ alignItems: 'flex-end' }}><Button kind="text" label="Open group" onPress={() => router.push({ pathname: '/groups', params: { open: j.groupId } })} /></View>
             </Card>
           ))}
-          {recent.length > 0 && <T v="section">Earlier</T>}
+          {(recent.length > 0 || downloads.length > 0) && <T v="section">Earlier</T>}
+          {downloads.map((d) => (
+            <Card key={d.at} style={{ gap: space.sm }}>
+              <Badge tone="success" label="Timetable downloaded" />
+              <T>Your weekly timetable was saved as a {d.kind === 'pdf' ? 'PDF' : 'photo'}.</T>
+              <T v="caption" color={colors.textSecondary}>{new Date(d.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</T>
+            </Card>
+          ))}
           {recent.map((f) => (
             <Card key={f.id} style={{ gap: space.sm }}>
               <Badge tone="success" label="Schedule imported" />
