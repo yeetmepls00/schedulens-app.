@@ -171,11 +171,28 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
       organizer = titled[0].replace(/\s+/g, ' ').trim();
       rest = rest.replace(titled[0], ' ');
     }
+    // Registration forms list the instructor as "DELA CRUZ, JUAN M."
+    if (!organizer) {
+      const comma = rest.match(/\b[A-Z][A-Za-z'-]+(?:\s[A-Z][A-Za-z'-]+)?,\s*[A-Z][A-Za-z'.-]+(?:\s[A-Z][A-Za-z'.-]*)*/);
+      if (comma) { organizer = comma[0].trim(); rest = rest.replace(comma[0], ' '); }
+    }
     let title = cleanTitle(rest);
     // A leading course code ("IT 311 Data Structures") is kept separately.
     let courseCode: string | undefined;
     const code = title.match(COURSE_CODE);
     if (code) { courseCode = `${code[1]} ${code[2]}`; title = code[3].trim(); }
+    // Drop form columns that are not part of the name: units ("3.0"), section ("BSIT-3A"), lec/lab hours.
+    title = cleanTitle(title
+      .replace(/\b(?:BS[A-Z]{1,5}|[A-Z]{2,5})\s?-?\s?\d[A-Z]\b/g, ' ')
+      .replace(/(?:^|\s)\d{1,2}\.\d{1,2}(?=\s|$)/g, ' ')
+      // Several bare numbers in a row are unit/hour columns; one alone may be part of the name ("Programming 1").
+      .replace(/(?:\s\d{1,2}){2,}(?=\s|$)/g, ' ')
+      .replace(/\b(?:LEC|LAB|UNITS?)\b/gi, ' '));
+    // A room code left at the end ("AB 204", "ITB-3").
+    if (!location) {
+      const tail = title.match(/\s([A-Z]{1,4}\s?-?\d{1,3}[A-Z]?)$/);
+      if (tail && title.length - tail[0].length >= 3) { location = tail[1].replace(/\s?-?(\d)/, ' $1'); title = title.slice(0, -tail[0].length).trim(); }
+    }
 
     const base = {
       title: field(title.length ? title : undefined, title.length >= 3 ? 'high' : 'low'),
