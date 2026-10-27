@@ -53,6 +53,10 @@ export function groupIntoRows(lines: PositionedLine[]): string[] {
 const T = String.raw`\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|am|pm|a|p|h)?`;
 const RANGE = new RegExp(String.raw`(${T})\s*(?:-|–|—|to)\s*(${T})`, 'i');
 const ROOM = /\b(?:room|rm\.?|lab|bldg\.?|building)\s*[#:.]?\s*[A-Z0-9][A-Z0-9-]*\b(?:\s*,?\s*(?:bldg\.?|building)\s*[A-Z0-9]+)?/i;
+// Short room labels printed on registration forms: "CL 2", "CR-5", "Gym", "AVR".
+const ROOM_SHORT = /\b(?:(?:CL|CR|LR|SL|ML|RM)\s?-?\d{1,3}[A-Z]?|GYM|AVR|FIELD|COURT|LIBRARY|TBA)\b/i;
+// "IT311", "IT 311", "GE-ELEC 2", "CS 101L"
+const COURSE_CODE = /^(?:\d{3,6}\s+)?([A-Z]{2,5}(?:-[A-Z]{2,5})?)\s?-?(\d{1,4}[A-Z]?)\s+(.{3,})$/;
 const ORGANIZER = /\b(?:[Pp]rof|PROF|[Dd]r|DR|[Mm]rs?|MRS?|[Mm]s|MS|[Ee]ngr|ENGR|[Ss]ir|[Mm]a'?am)\.?\s+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,3}/;
 const ORGANIZER_LABEL = /\b(?:instructor|teacher|faculty|organizer)\s*[:\-]\s*([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,3})/i;
 const DAY_WORD = /\b(?:mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b(?:\s*[/&,-]\s*\b(?:mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b)*/i;
@@ -105,6 +109,12 @@ function readDays(text: string): { days: Weekday[]; strong: boolean; span: strin
     const d = parseDays(noisy[0].replace(/[EH]/g, (c) => (c === 'H' ? 'h' : '')));
     if (d) return { days: d.days, strong: false, span: noisy[0] };
   }
+  // OCR often drops capitals ("Mw" for "MW"). Read it, but ask the user to check.
+  const lower = text.match(/\b[MTWFS][mtwfsh]{1,4}\b/);
+  if (lower) {
+    const d = parseDays(lower[0].replace(/h/g, '\u0000').toUpperCase().replace(/\u0000/g, 'h'));
+    if (d) return { days: d.days, strong: false, span: lower[0] };
+  }
   return undefined;
 }
 
@@ -143,6 +153,13 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     if (room) {
       location = room[0].replace(/^rm\.?/i, 'Room').replace(/\s+/g, ' ').trim();
       rest = rest.replace(room[0], ' ');
+    } else {
+      const short = rest.match(ROOM_SHORT);
+      if (short) {
+        location = short[0].toUpperCase().replace(/^([A-Z]+)\s?-?(\d)/, '$1 $2');
+        if (!/\d|AVR|TBA/.test(location)) location = location[0] + location.slice(1).toLowerCase();
+        rest = rest.replace(short[0], ' ');
+      }
     }
     let organizer: string | undefined;
     const labeled = rest.match(ORGANIZER_LABEL);
@@ -157,8 +174,8 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     let title = cleanTitle(rest);
     // A leading course code ("IT 311 Data Structures") is kept separately.
     let courseCode: string | undefined;
-    const code = title.match(/^([A-Z]{2,5}\s?-?\d{1,4}[A-Z]?)\s+(.{3,})$/);
-    if (code) { courseCode = code[1]; title = code[2].trim(); }
+    const code = title.match(COURSE_CODE);
+    if (code) { courseCode = `${code[1]} ${code[2]}`; title = code[3].trim(); }
 
     const base = {
       title: field(title.length ? title : undefined, title.length >= 3 ? 'high' : 'low'),

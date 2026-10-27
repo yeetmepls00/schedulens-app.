@@ -21,7 +21,8 @@ export function EventCard({ event, issue, onPress }: { event: ScheduleEvent; iss
         <T v="caption" color={colors.textSecondary}>{formatTime(event.endMin)}</T>
       </View>
       <View style={{ flex: 1, paddingVertical: space.md, paddingRight: space.md, gap: 4 }}>
-        <T v="cardTitle" lines={2}>{event.title}</T>
+        <T v="cardTitle" lines={2}>{event.courseCode ? `${event.courseCode} · ` : ''}{event.title}</T>
+        {event.notes ? <T v="caption" color={colors.textSecondary} lines={2}>{event.notes}</T> : null}
         {event.location ? (
           <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
             <Icon name="location-outline" size={14} color={colors.textSecondary} />

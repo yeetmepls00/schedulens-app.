@@ -88,6 +88,7 @@ export default function EventForm() {
     <Screen title={isNew ? 'New event' : 'Edit event'} back footer={<Button label="Save" onPress={save} />}>
       {!isNew && !old && <Banner tone="error" title="Event not found" message="It may have been deleted." />}
       <Field label="Title" value={title} onChangeText={setTitle} error={err('title')} placeholder="e.g. Math class, Team meeting, Shift" />
+      <Field label="Purpose or description (optional)" value={notes} onChangeText={(v) => setNotes(v.slice(0, 300))} multiline placeholder="e.g. Group review for the midterm 📚, bring laptop" />
       <View style={{ gap: 6 }}>
         <T v="label">Subject color</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -134,8 +135,7 @@ export default function EventForm() {
       </View>
       <Field label="Room (optional)" value={location} onChangeText={setLocation} />
       <Field label="Instructor (optional)" value={organizer} onChangeText={setOrganizer} />
-      <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="e.g. Bring laptop" />
-      {live.map((i, n) => <Banner key={n} tone={i.kind === 'overlap' ? 'error' : 'warning'} title={i.kind === 'overlap' ? 'Overlaps another event' : i.kind === 'travel' ? 'Short travel time' : 'Long stretch without a break'} message={i.message} />)}
+            {live.map((i, n) => <Banner key={n} tone={i.kind === 'overlap' ? 'error' : 'warning'} title={i.kind === 'overlap' ? 'Overlaps another event' : i.kind === 'travel' ? 'Short travel time' : 'Long stretch without a break'} message={i.message} />)}
       {old && <Button kind="text" label="Delete event" icon="trash" onPress={remove} />}
     </Screen>
   );
