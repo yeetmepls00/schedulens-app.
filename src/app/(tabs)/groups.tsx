@@ -7,19 +7,21 @@ import { codeFromQr, readQrFromImage } from '../../lib/qr';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Image, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
-import { DayOverlay, WeekOverlay, freeWindows } from '../../components/busy-overlay';
+import { DayOverlay, freeWindows } from '../../components/busy-overlay';
+import { GroupCalendar, activityOn } from '../../components/group-calendar';
+import { MEMBER_COLORS, assignColors } from '../../lib/member-colors';
 import { Badge, Banner, Button, Card, Chip, Empty, Field, Icon, Screen, T } from '../../components/ui';
-import { REPEAT_LABEL, thisWeek } from '../../lib/repeat';
-import { DateInput } from '../../components/date-input';
+import { REPEAT_LABEL, isoDate, thisWeek } from '../../lib/repeat';
+import { DateInput, TimeField } from '../../components/date-input';
 import { getSetting, useEvents } from '../../data/db';
-import { loadGroupInfo, loadGroupSummary, removeMember, setGroupDescription } from '../../lib/groups';
+import { loadGroupInfo, loadGroupSummary, removeMember, setGroupDescription, setMyColor } from '../../lib/groups';
 import { confirm } from '../../lib/confirm';
 import { getGroupLook } from '../../lib/group-look';
 import { GroupBackdrop, GroupListCard, GroupLookEditor, MemberBubbles } from '../../components/group-card';
-import { addActivity, createGroup, deleteActivity, groupsConfigured, leaveGroup, loadActivities, loadMembers, nextDateFor, saveGroups, savedGroups, shareBusy, type Activity, type ActivityRepeat, type Group, type MemberBusy } from '../../lib/groups';
+import { addActivity, createGroup, deleteActivities, updateActivity, groupsConfigured, leaveGroup, loadActivities, loadMembers, nextDateFor, saveGroups, savedGroups, shareBusy, type Activity, type ActivityRepeat, type Group, type MemberBusy } from '../../lib/groups';
 import { DAY_NAMES, DAY_SHORT, formatDuration, formatTime, parseTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
-import { colors, space } from '../../theme/tokens';
+import { colors, radius, space } from '../../theme/tokens';
 
 export default function Groups() {
   const allEvents = useEvents();
@@ -29,7 +31,12 @@ export default function Groups() {
   const params = useLocalSearchParams<{ open?: string }>();
   const [open, setOpen] = useState<Group | null>(null);
   const [members, setMembers] = useState<MemberBusy[]>([]);
-  const [day, setDay] = useState<Weekday>(new Date().getDay() as Weekday);
+  const [picked, setPicked] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
+  const day = picked.getDay() as Weekday;
+  const [showAll, setShowAll] = useState(false);
+  const [synced, setSynced] = useState(false);
+  const [selActs, setSelActs] = useState(false);
+  const [pickedActs, setPickedActs] = useState<Set<string>>(new Set());
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -48,7 +55,7 @@ export default function Groups() {
   }
   const [busy, setBusy] = useState(false);
   const [desc, setDesc] = useState('');
-  const [info, setInfo] = useState<{ description: string; isOwner: boolean; ownerId?: string } | null>(null);
+  const [info, setInfo] = useState<{ description: string; isOwner: boolean; ownerId?: string; myId?: string } | null>(null);
   const [editDesc, setEditDesc] = useState<string | null>(null);
   const [styling, setStyling] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -63,7 +70,7 @@ export default function Groups() {
     return () => { live = false; };
   }, [groups, open]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [plan, setPlan] = useState<{ title: string; day: string; start: string; end: string; place: string; repeat?: ActivityRepeat } | null>(null);
+  const [plan, setPlan] = useState<{ id?: string; title: string; day: string; start: string; end: string; place: string; repeat?: ActivityRepeat } | null>(null);
   const [planErr, setPlanErr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const displayName = getSetting('displayName', '');
@@ -99,6 +106,8 @@ export default function Groups() {
   }
 
   if (open) {
+    const memberColors = assignColors(members);
+    const colorOf = (i: number) => memberColors[i] ?? MEMBER_COLORS[0];
     return (
       <Screen title={open.name} back={false}
         left={<Pressable accessibilityRole="button" accessibilityLabel="Group settings" onPress={() => setSettingsOpen(true)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="settings-outline" size={24} /></Pressable>}
@@ -120,7 +129,7 @@ export default function Groups() {
             </Pressable>
           </View>
           {info?.description ? <T>{info.description}</T> : null}
-          <MemberBubbles names={members.map((m) => m.displayName)} accent={getGroupLook(open.id).accent} max={12} />
+          <MemberBubbles names={members.map((m) => m.displayName)} colorsFor={members.map((_, i) => colorOf(i))} accent={getGroupLook(open.id).accent} max={12} />
         </GroupBackdrop>
         <Modal transparent animationType="fade" visible={settingsOpen} onRequestClose={() => { setSettingsOpen(false); setEditDesc(null); }}>
           <Pressable onPress={() => { setSettingsOpen(false); setEditDesc(null); }} style={{ flex: 1, backgroundColor: 'rgba(58,42,44,0.35)', justifyContent: 'flex-end' }} accessibilityLabel="Close">
@@ -137,6 +146,37 @@ export default function Groups() {
                     </View>
                   </>
                 ) : <Button kind="secondary" icon="create-outline" label={info.description ? 'Edit description' : 'Add description'} onPress={() => setEditDesc(info.description)} />)}
+                <View style={{ gap: 6 }}>
+                  <T v="label">Your color</T>
+                  <T v="caption" color={colors.textSecondary}>Everyone in the group sees you in this color. Colors other members already use can't be picked.</T>
+                  {(() => {
+                    const mine = members.findIndex((m) => m.userId === info?.myId);
+                    if (mine < 0) return <T v="caption" color={colors.textSecondary}>Sync your times first to pick a color.</T>;
+                    const taken = new Set(memberColors.filter((_, i) => i !== mine));
+                    return (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {MEMBER_COLORS.map((c) => {
+                          const isTaken = taken.has(c), on = colorOf(mine) === c;
+                          return (
+                            <Pressable key={c} disabled={isTaken || busy} accessibilityRole="button" accessibilityLabel={`Color ${c}${isTaken ? ', taken' : ''}`} accessibilityState={{ selected: on, disabled: isTaken }}
+                              onPress={() => run(async () => { await setMyColor(open.id, c); setMembers(await loadMembers(open.id)); })}
+                              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c, opacity: isTaken ? 0.2 : 1, borderWidth: on ? 3 : 0, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+                              {isTaken && <Icon name="close" size={16} color={colors.text} />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    );
+                  })()}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: 4 }}>
+                    {members.map((m, i) => (
+                      <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colorOf(i) }} />
+                        <T v="caption">{m.userId === info?.myId ? `${m.displayName} (you)` : m.displayName}</T>
+                      </View>
+                    ))}
+                  </View>
+                </View>
                 {info?.isOwner && (
                   <View style={{ gap: 2 }}>
                     <T v="label">Manage members</T>
@@ -158,47 +198,95 @@ export default function Groups() {
           </Pressable>
         </Modal>
         <GroupLookEditor groupId={styling} onClose={() => setStyling(null)} />
-        <WeekOverlay members={members} day={day} onDay={setDay} />
-        <DayOverlay members={members} day={day} />
-        <T v="section">Best times on {DAY_NAMES[day]}</T>
-        <T v="caption" color={colors.textSecondary}>Times when everyone, or most of the group, is free. Tap Plan to set an activity.</T>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <T v="section">Group calendar</T>
+          <Pressable accessibilityRole="button" accessibilityLabel="Update my busy times" disabled={busy}
+            onPress={() => run(async () => { await shareBusy(open.id, events); setMembers(await loadMembers(open.id)); setSynced(true); })}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, opacity: busy ? 0.5 : 1 }}>
+            <Icon name={synced ? 'checkmark' : 'refresh'} size={14} color={colors.strawberryStrong} />
+            <T v="caption" style={{ fontWeight: '700' }}>{synced ? 'Updated' : 'Sync my times'}</T>
+          </Pressable>
+        </View>
+        <GroupCalendar members={members} activities={activities} colorOf={colorOf} picked={picked} onPick={(d) => { setPicked(d); setShowAll(false); }} />
+        <T v="section">{picked.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</T>
+        {activities.filter((a) => activityOn(a, picked)).map((a) => (
+          <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.md }}>
+            <T>⭐</T>
+            <View style={{ flex: 1 }}>
+              <T v="cardTitle">{a.title}</T>
+              <T v="caption" color={colors.textSecondary}>{formatTime(a.startMin)} – {formatTime(a.endMin)}{a.place ? ` · ${a.place}` : ''}</T>
+            </View>
+          </View>
+        ))}
+        <DayOverlay members={members} day={day} colorOf={colorOf} title="Who's busy"
+          plans={activities.filter((a) => activityOn(a, picked))} />
+        <T v="label">Best times</T>
         {(() => {
           const wins = freeWindows(members, day);
-          if (!wins.length) return <Empty icon="time-outline" title="No good free time" message="Most of the group is busy between 7 AM and 9 PM on this day. Try another day above." />;
-          return wins.slice(0, 6).map((w, i) => (
-            <Card key={i} style={{ gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                <T v="cardTitle" style={{ flex: 1 }}>{formatTime(w.startMin)} – {formatTime(w.endMin)}</T>
-                <Badge tone={w.busy.length ? 'warning' : 'success'} label={w.busy.length ? `${w.free.length} of ${members.length} free` : 'Everyone free'} />
-              </View>
-              <T v="caption" color={colors.textSecondary}>{formatDuration(w.endMin - w.startMin)}</T>
-              <T v="caption"><T v="captionStrong">Free: </T>{w.free.map((m) => m.displayName).join(', ')}</T>
-              {w.busy.length > 0 && <T v="caption"><T v="captionStrong">Busy: </T>{w.busy.map((m) => m.displayName).join(', ')}</T>}
-              <Button kind="text" icon="add" label="Plan" style={{ alignSelf: 'flex-start' }} onPress={() => { setPlanErr(null); setPlan({ title: '', day: nextDateFor(day), start: formatTime(w.startMin), end: formatTime(Math.min(w.endMin, w.startMin + 60)), place: '' }); }} />
-            </Card>
-          ));
+          if (!wins.length) return <Empty icon="time-outline" title="No good free time" message="Most of the group is busy between 7 AM and 9 PM on this day. Try another day." />;
+          return (
+            <>
+              {(showAll ? wins : wins.slice(0, 3)).map((w, i) => (
+                <Card key={i} style={{ gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <T v="cardTitle" style={{ flex: 1 }}>{formatTime(w.startMin)} – {formatTime(w.endMin)}</T>
+                    <Badge tone={w.busy.length ? 'warning' : 'success'} label={w.busy.length ? `${w.free.length} of ${members.length} free` : 'Everyone free'} />
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                    {w.free.map((m) => <Who key={m.userId} name={m.displayName} color={colorOf(members.indexOf(m))} />)}
+                    {w.busy.length > 0 && <T v="caption" color={colors.textSecondary}>· busy:</T>}
+                    {w.busy.map((m) => <Who key={m.userId} name={m.displayName} color={colorOf(members.indexOf(m))} dim />)}
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <T v="caption" color={colors.textSecondary}>{formatDuration(w.endMin - w.startMin)}</T>
+                    <Button kind="text" icon="add" label="Plan" onPress={() => { setPlanErr(null); setPlan({ title: '', day: isoDate(picked), start: formatTime(w.startMin), end: formatTime(Math.min(w.endMin, w.startMin + 60)), place: '' }); }} />
+                  </View>
+                </Card>
+              ))}
+              {wins.length > 3 && <Button kind="text" label={showAll ? 'Show fewer' : `Show all ${wins.length} times`} onPress={() => setShowAll(!showAll)} style={{ alignSelf: 'center' }} />}
+            </>
+          );
         })()}
-        <Button kind="tonal" label="Update my busy times" icon="refresh" loading={busy} onPress={() => run(async () => { await shareBusy(open.id, events); setMembers(await loadMembers(open.id)); })} />
         <Banner tone="matcha" title="Private by design" message="Members see only when you are busy, never what your events are." />
-        <T v="section">Group activities</T>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <T v="section">Group activities</T>
+          {activities.length > 0 && <Button kind="text" label={selActs ? 'Done' : 'Select'} onPress={() => { setSelActs(!selActs); setPickedActs(new Set()); }} />}
+        </View>
         <T v="caption" color={colors.textSecondary}>Set a date for a meeting or activity. Everyone in the group can see it.</T>
         {activities.length === 0 && !plan && <Empty icon="calendar-outline" title="Nothing planned yet" message="Pick a free time below and tap Plan, or add one yourself." />}
-        {activities.map((a) => (
-          <Card key={a.id} style={{ gap: 4 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <T v="cardTitle" style={{ flex: 1 }}>{a.title}</T>
-              {a.mine && <Button kind="text" label="Remove" onPress={() => run(async () => { await deleteActivity(a.id); setActivities(await loadActivities(open.id)); })} />}
-            </View>
-            <T>{a.repeat === 'once' ? new Date(a.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
-              : a.repeat === 'daily' ? 'Every day'
-              : a.repeat === 'weekly' ? `Every ${new Date(a.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long' })}`
-              : `Every month on day ${new Date(a.day + 'T00:00:00').getDate()}`} · {formatTime(a.startMin)} – {formatTime(a.endMin)}</T>
-            <T v="caption" color={colors.textSecondary}>{a.place ? `${a.place} · ` : ''}Added by {a.by || 'a member'}</T>
-          </Card>
-        ))}
+        {activities.map((a) => {
+          const on = pickedActs.has(a.id);
+          const toggle = () => { const n = new Set(pickedActs); if (on) n.delete(a.id); else n.add(a.id); setPickedActs(n); };
+          return (
+            <Pressable key={a.id} disabled={!selActs} onPress={toggle} accessibilityRole={selActs ? 'checkbox' : undefined} accessibilityState={selActs ? { checked: on } : undefined}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              {selActs && <Icon name={on ? 'checkbox' : 'square-outline'} size={26} color={on ? colors.strawberryStrong : colors.textSecondary} />}
+              <Card style={{ gap: 4, flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <T v="cardTitle" style={{ flex: 1 }}>{a.title}</T>
+                  {!selActs && <Button kind="text" icon="create-outline" label="Edit" onPress={() => { setPlanErr(null); setPlan({ id: a.id, title: a.title, day: a.day, start: formatTime(a.startMin), end: formatTime(a.endMin), place: a.place, repeat: a.repeat }); }} />}
+                </View>
+                <T>{a.repeat === 'once' ? new Date(a.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+                  : a.repeat === 'daily' ? 'Every day'
+                  : a.repeat === 'weekly' ? `Every ${new Date(a.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long' })}`
+                  : `Every month on day ${new Date(a.day + 'T00:00:00').getDate()}`} · {formatTime(a.startMin)} – {formatTime(a.endMin)}</T>
+                <T v="caption" color={colors.textSecondary}>{a.place ? `${a.place} · ` : ''}Added by {a.by || 'a member'}</T>
+              </Card>
+            </Pressable>
+          );
+        })}
+        {selActs && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.md }}>
+            <T v="captionStrong" style={{ flex: 1 }}>{pickedActs.size} selected</T>
+            <Button kind="secondary" label="Cancel" onPress={() => { setSelActs(false); setPickedActs(new Set()); }} />
+            <Button icon="trash" label="Delete" disabled={pickedActs.size === 0} onPress={() => confirm(`Delete ${pickedActs.size} ${pickedActs.size === 1 ? 'activity' : 'activities'}?`, 'They are removed for everyone in the group.', [
+              { text: 'Delete', destructive: true, onPress: () => run(async () => { await deleteActivities([...pickedActs]); setSelActs(false); setPickedActs(new Set()); setActivities(await loadActivities(open.id)); }) },
+            ])} />
+          </View>
+        )}
         {plan ? (
           <Card style={{ gap: space.md }}>
-            <T v="cardTitle">Plan an activity</T>
+            <T v="cardTitle">{plan.id ? 'Edit activity' : 'Plan an activity'}</T>
             {planErr && <Banner tone="error" title="Check the details" message={planErr} />}
             <Field label="What" value={plan.title} onChangeText={(v) => setPlan({ ...plan, title: v })} placeholder="e.g. Thesis meeting" />
             <View style={{ gap: 6 }}>
@@ -214,28 +302,30 @@ export default function Groups() {
               <DateInput value={plan.day} onChange={(v) => setPlan({ ...plan, day: v })} />
             </View>
             <View style={{ flexDirection: 'row', gap: space.md }}>
-              <View style={{ flex: 1 }}><Field label="Start" value={plan.start} onChangeText={(v) => setPlan({ ...plan, start: v })} /></View>
-              <View style={{ flex: 1 }}><Field label="End" value={plan.end} onChangeText={(v) => setPlan({ ...plan, end: v })} /></View>
+              <View style={{ flex: 1 }}><TimeField label="Start" value={plan.start} onChange={(v) => setPlan({ ...plan, start: v })} /></View>
+              <View style={{ flex: 1 }}><TimeField label="End" value={plan.end} onChange={(v) => setPlan({ ...plan, end: v })} /></View>
             </View>
             <Field label="Place (optional)" value={plan.place} onChangeText={(v) => setPlan({ ...plan, place: v })} placeholder="e.g. Library" />
             <View style={{ flexDirection: 'row', gap: space.md }}>
               <Button kind="secondary" label="Cancel" style={{ flex: 1 }} onPress={() => setPlan(null)} />
-              <Button label="Share with group" style={{ flex: 1 }} loading={busy} onPress={() => {
+               <Button label={plan.id ? 'Save changes' : 'Share with group'} style={{ flex: 1 }} loading={busy} onPress={() => {
                 const st = parseTime(plan.start)?.minutes, en = parseTime(plan.end)?.minutes;
                 const d = /^\d{4}-\d{2}-\d{2}$/.test(plan.day) ? new Date(plan.day + 'T00:00:00') : null;
                 const today = new Date(); today.setHours(0, 0, 0, 0);
                 const err = !plan.title.trim() ? 'Add a name for the activity.'
                   : !d || isNaN(d.getTime()) ? 'Enter the date like 2026-11-03.'
-                  : d < today ? 'Pick today or a later date.'
+                  : d < today && !plan.id && (plan.repeat ?? 'once') === 'once' ? 'Pick today or a later date.'
                   : st === undefined || en === undefined ? 'Enter times like 3:00 PM.'
                   : en <= st ? 'The end time must be after the start time.' : null;
                 if (err) { setPlanErr(err); return; }
-                run(async () => { await addActivity(open.id, { title: plan.title, day: plan.day, startMin: st!, endMin: en!, place: plan.place, repeat: plan.repeat ?? 'once' }, displayName); setPlan(null); setActivities(await loadActivities(open.id)); });
+                run(async () => {
+                  const fields = { title: plan.title, day: plan.day, startMin: st!, endMin: en!, place: plan.place, repeat: plan.repeat ?? 'once' };
+                  if (plan.id) await updateActivity(plan.id, fields); else await addActivity(open.id, fields, displayName); setPlan(null); setActivities(await loadActivities(open.id)); });
               }} />
             </View>
           </Card>
         ) : (
-          <Button kind="tonal" icon="add" label="Plan an activity" onPress={() => { setPlanErr(null); setPlan({ title: '', day: nextDateFor(day), start: '3:00 PM', end: '4:00 PM', place: '' }); }} />
+          <Button kind="tonal" icon="add" label="Plan an activity" onPress={() => { setPlanErr(null); setPlan({ title: '', day: isoDate(picked), start: '3:00 PM', end: '4:00 PM', place: '' }); }} />
         )}
       </Screen>
     );
@@ -278,5 +368,15 @@ export default function Groups() {
       <InviteAppCard />
       <QrScanner open={scanning} onClose={() => setScanning(false)} onResult={(t) => { setScanning(false); joinFromQr(t); }} />
     </Screen>
+  );
+}
+
+/** A member's name with their color, used in the free-time list. */
+function Who({ name, color, dim }: { name: string; color: string; dim?: boolean }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: dim ? '#F3EEEE' : colors.card, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8, opacity: dim ? 0.7 : 1 }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+      <T v="caption" style={{ textDecorationLine: dim ? 'line-through' : 'none' }}>{name}</T>
+    </View>
   );
 }

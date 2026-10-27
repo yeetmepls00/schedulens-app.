@@ -23,13 +23,13 @@ export function GroupBackdrop({ groupId, children, style }: { groupId: string; c
   );
 }
 
-export function MemberBubbles({ names, accent, max = 5 }: { names: string[]; accent: string; max?: number }) {
+export function MemberBubbles({ names, accent, max = 5, colorsFor }: { names: string[]; accent: string; max?: number; colorsFor?: string[] }) {
   const shown = names.slice(0, max);
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
       {shown.map((n, i) => (
         <View key={n + i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 999, paddingVertical: 3, paddingLeft: 3, paddingRight: 10 }}>
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colorsFor?.[i] ?? accent, alignItems: 'center', justifyContent: 'center' }}>
             <T v="captionStrong" color={colors.white}>{(n || '?')[0].toUpperCase()}</T>
           </View>
           <T v="captionStrong">{n}</T>

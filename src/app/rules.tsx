@@ -1,5 +1,6 @@
 // 4.7 Schedule rules: term dates and the warning rules used by the conflict checks.
 import { useState } from 'react';
+import { DateInput, TimeField } from '../components/date-input';
 import { View } from 'react-native';
 import { Banner, Button, Card, Field, Screen, T } from '../components/ui';
 import { getRules, getSetting, setSetting } from '../data/db';
@@ -37,8 +38,8 @@ export default function Rules() {
         <T v="cardTitle">Term dates</T>
         <T v="caption" color={colors.textSecondary}>Used when exporting, so weekly events stop at the end of term.</T>
         <View style={{ flexDirection: 'row', gap: space.md }}>
-          <View style={{ flex: 1 }}><Field label="Start" value={termStart} onChangeText={setTermStart} placeholder="2026-08-10" error={errs.termStart} /></View>
-          <View style={{ flex: 1 }}><Field label="End" value={termEnd} onChangeText={setTermEnd} placeholder="2026-12-18" error={errs.termEnd} /></View>
+          <View style={{ flex: 1 }}><T v="label">Start</T><DateInput value={termStart} onChange={setTermStart} />{errs.termStart ? <T v="caption" color={colors.error}>{errs.termStart}</T> : null}</View>
+          <View style={{ flex: 1 }}><T v="label">End</T><DateInput value={termEnd} onChange={setTermEnd} />{errs.termEnd ? <T v="caption" color={colors.error}>{errs.termEnd}</T> : null}</View>
         </View>
       </Card>
       <Card style={{ gap: space.md }}>

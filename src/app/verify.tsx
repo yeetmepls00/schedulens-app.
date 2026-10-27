@@ -1,6 +1,7 @@
 // Verify: the user checks every extracted value before saving.
 // Values the parser was unsure about are highlighted; nothing saves until Confirm.
 import { router } from 'expo-router';
+import { DateInput, TimeField } from '../components/date-input';
 import { useMemo, useState } from 'react';
 import { Image, View } from 'react-native';
 import { Badge, Banner, Button, Card, Chip, Field, Screen, T } from '../components/ui';
@@ -102,8 +103,8 @@ export default function Verify() {
                 {errors.weekday ? <Badge tone="error" label={errors.weekday} /> : r.src.weekday.confidence === 'low' && !touched.has(`${i}.weekday`) ? <Badge tone="warning" label="Please confirm the day" /> : null}
               </View>
               <View style={{ flexDirection: 'row', gap: space.md }}>
-                <View style={{ flex: 1 }}><Field label="Start" value={r.start} onChangeText={(v) => set(i, 'start', v)} error={errors.start} tone={tone(i, 'start', r.src.startMin.confidence)} /></View>
-                <View style={{ flex: 1 }}><Field label="End" value={r.end} onChangeText={(v) => set(i, 'end', v)} error={errors.end} tone={tone(i, 'end', r.src.endMin.confidence)} /></View>
+                <View style={{ flex: 1 }}><TimeField label="Start" value={r.start} onChange={(v) => set(i, 'start', v)} error={errors.start} tone={tone(i, 'start', r.src.startMin.confidence)} /></View>
+                <View style={{ flex: 1 }}><TimeField label="End" value={r.end} onChange={(v) => set(i, 'end', v)} error={errors.end} tone={tone(i, 'end', r.src.endMin.confidence)} /></View>
               </View>
               <Field label="Room (optional)" value={r.location} onChangeText={(v) => set(i, 'location', v)} />
               <Field label="Instructor (optional)" value={r.organizer} onChangeText={(v) => set(i, 'organizer', v)} />

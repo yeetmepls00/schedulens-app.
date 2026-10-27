@@ -3,6 +3,7 @@
 // change made here. The design is stored apart from the schedule, so changing
 // it never changes class times or details.
 import { router } from 'expo-router';
+import { DateInput, TimeField } from '../components/date-input';
 import { goBack } from '../lib/nav';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -223,8 +224,8 @@ function ClassPanel({ event: e, color, onChange, onColor, onDuplicate, onDelete,
       <Field label="Subject" value={f.title} onChangeText={(v) => setF({ ...f, title: v })} onBlur={apply} />
       <Field label="Course code" value={f.courseCode} onChangeText={(v) => setF({ ...f, courseCode: v })} onBlur={apply} placeholder="e.g. IT 311" />
       <View style={{ flexDirection: 'row', gap: space.md }}>
-        <View style={{ flex: 1 }}><Field label="Start" value={f.start} onChangeText={(v) => setF({ ...f, start: v })} onBlur={apply} /></View>
-        <View style={{ flex: 1 }}><Field label="End" value={f.end} onChangeText={(v) => setF({ ...f, end: v })} onBlur={apply} /></View>
+        <View style={{ flex: 1 }}><TimeField label="Start" value={f.start} onChange={(v) => setF({ ...f, start: v })} onBlur={apply} /></View>
+        <View style={{ flex: 1 }}><TimeField label="End" value={f.end} onChange={(v) => setF({ ...f, end: v })} onBlur={apply} /></View>
       </View>
       <Field label="Room" value={f.location} onChangeText={(v) => setF({ ...f, location: v })} onBlur={apply} />
       <Field label="Instructor" value={f.organizer} onChangeText={(v) => setF({ ...f, organizer: v })} onBlur={apply} />

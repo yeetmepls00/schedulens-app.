@@ -54,7 +54,7 @@ export default function Calendar() {
     <Screen title="Calendar" left={select} right={add} footer={selecting ? (
       <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
         <T v="captionStrong" style={{ flex: 1 }}>{picked.size} selected</T>
-        <Button kind="secondary" label="Cancel" onPress={stop} />
+        {picked.size === 1 ? <Button kind="secondary" icon="create-outline" label="Edit" onPress={() => { const id = [...picked][0]; stop(); router.push(`/event/${id}`); }} /> : <Button kind="secondary" label="Cancel" onPress={stop} />}
         <Button icon="trash" label="Delete" disabled={picked.size === 0} onPress={removePicked} />
       </View>
     ) : undefined}>

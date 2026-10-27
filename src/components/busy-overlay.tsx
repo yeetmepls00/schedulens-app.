@@ -12,7 +12,12 @@ export const START = 7 * 60, END = 21 * 60, STEP = 30;
 const MEMBER_COLORS = ['#E8708A', '#6FA8DC', '#F4B860', '#9CC27A', '#B48EDB', '#F28C6B', '#4DB6AC', '#C9A27E'];
 const pct = (m: number) => `${((m - START) / (END - START)) * 100}%` as const;
 
-export function DayOverlay({ members, day }: { members: MemberBusy[]; day: Weekday }) {
+export function DayOverlay({ members, day, colorOf, plans = [], title }: {
+  members: MemberBusy[]; day: Weekday; colorOf?: (i: number) => string;
+  /** Group activities on this day, drawn as their own row. */
+  plans?: { title: string; startMin: number; endMin: number }[]; title?: string;
+}) {
+  const col = (i: number) => colorOf?.(i) ?? MEMBER_COLORS[i % MEMBER_COLORS.length];
   const [pick, setPick] = useState<number | null>(null);
   const slots = Array.from({ length: (END - START) / STEP }, (_, i) => START + i * STEP);
   const busyAt = (m: MemberBusy, t: number) => m.blocks.some((b) => b.weekday === day && b.startMin < t + STEP && b.endMin > t);
@@ -21,7 +26,7 @@ export function DayOverlay({ members, day }: { members: MemberBusy[]; day: Weekd
 
   return (
     <View style={{ backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, padding: space.md, gap: 8 }}>
-      <T v="cardTitle">{DAY_NAMES[day]} by member</T>
+      <T v="cardTitle">{title ?? `${DAY_NAMES[day]} by member`}</T>
       <T v="caption" color={colors.textSecondary}>Each row is one member's busy time. Tap the top row to see who's busy at that time.</T>
 
       {/* Everyone combined */}
@@ -44,20 +49,35 @@ export function DayOverlay({ members, day }: { members: MemberBusy[]; day: Weekd
       {members.map((m, i) => (
         <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ width: nameW, flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] }} />
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: col(i) }} />
             <T v="caption" lines={1} style={{ flex: 1 }}>{m.displayName}</T>
           </View>
           <View style={{ flex: 1, height: 20, backgroundColor: '#F3EEEE', borderRadius: 6, overflow: 'hidden' }}>
             {m.blocks.filter((b) => b.weekday === day && b.endMin > START && b.startMin < END).map((b, k) => (
               <View key={k} style={{ position: 'absolute', top: 0, bottom: 0, left: pct(Math.max(START, b.startMin)),
                 width: `${((Math.min(END, b.endMin) - Math.max(START, b.startMin)) / (END - START)) * 100}%`,
-                backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length], opacity: 0.85 }} />
+                backgroundColor: col(i), opacity: 0.85 }} />
             ))}
             {pick !== null && <View style={{ position: 'absolute', top: 0, bottom: 0, left: pct(pick), width: `${(STEP / (END - START)) * 100}%`, borderWidth: 1.5, borderColor: colors.text }} />}
           </View>
         </View>
       ))}
 
+      {plans.length > 0 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: nameW, flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 }}>
+            <T v="caption" style={{ fontSize: 12 }}>⭐</T>
+            <T v="captionStrong" lines={1} style={{ flex: 1 }}>Group plan</T>
+          </View>
+          <View style={{ flex: 1, height: 20, backgroundColor: '#F3EEEE', borderRadius: 6, overflow: 'hidden' }}>
+            {plans.filter((b) => b.endMin > START && b.startMin < END).map((b, k) => (
+              <View key={k} style={{ position: 'absolute', top: 0, bottom: 0, left: pct(Math.max(START, b.startMin)),
+                width: `${((Math.min(END, b.endMin) - Math.max(START, b.startMin)) / (END - START)) * 100}%`,
+                backgroundColor: colors.text, borderRadius: 4 }} />
+            ))}
+          </View>
+        </View>
+      )}
       {/* Hour labels */}
       <View style={{ flexDirection: 'row', marginLeft: nameW, height: 16 }}>
         {[7, 10, 13, 16, 19, 21].map((h) => (

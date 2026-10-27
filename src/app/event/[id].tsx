@@ -13,7 +13,7 @@ import { findIssues } from '../../lib/conflicts';
 import { DAY_NAMES, DAY_SHORT, formatTime, parseTime } from '../../lib/time';
 import type { Weekday } from '../../lib/types';
 import { REPEAT_LABEL, isoDate, parseIso, type Repeat } from '../../lib/repeat';
-import { DateInput } from '../../components/date-input';
+import { DateInput, TimeField } from '../../components/date-input';
 import { colors, space } from '../../theme/tokens';
 
 const SWATCHES = ['#E63946', '#F4A261', '#E9C46A', '#2A9D8F', '#43AA8B', '#4D96FF', '#5E60CE', '#B5179E', '#FF85A1', '#8D6E63'];
@@ -129,8 +129,8 @@ export default function EventForm() {
         {err('weekday') && <Badge tone="error" label={errors.weekday} />}
       </View>}
       <View style={{ flexDirection: 'row', gap: space.md }}>
-        <View style={{ flex: 1 }}><Field label="Start" value={start} onChangeText={setStart} error={err('start')} placeholder="9:00 AM" /></View>
-        <View style={{ flex: 1 }}><Field label="End" value={end} onChangeText={setEnd} error={err('end')} placeholder="10:30 AM" /></View>
+        <View style={{ flex: 1 }}><TimeField label="Start" value={start} onChange={setStart} error={err('start')} /></View>
+        <View style={{ flex: 1 }}><TimeField label="End" value={end} onChange={setEnd} error={err('end')} /></View>
       </View>
       <Field label="Room (optional)" value={location} onChangeText={setLocation} />
       <Field label="Instructor (optional)" value={organizer} onChangeText={setOrganizer} />

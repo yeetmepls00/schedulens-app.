@@ -36,7 +36,7 @@ async function ensureSignedIn(_displayName: string) {
 }
 
 export interface Group { id: string; name: string; code: string; expiresAt: string }
-export interface MemberBusy { userId: string; displayName: string; blocks: BusyBlock[] }
+export interface MemberBusy { userId: string; displayName: string; blocks: BusyBlock[]; color?: string }
 
 export async function createGroup(name: string, displayName: string, events: ScheduleEvent[]): Promise<Group> {
   await ensureSignedIn(displayName);
@@ -79,13 +79,17 @@ export async function shareBusy(groupId: string, events: ScheduleEvent[]) {
 }
 
 export async function loadMembers(groupId: string): Promise<MemberBusy[]> {
-  const { data: members, error } = await sb().from('group_members').select('user_id, username').eq('group_id', groupId);
+  // The color column may not exist yet on older databases; fall back without it.
+  let res = await sb().from('group_members').select('user_id, username, color').eq('group_id', groupId);
+  if (res.error?.message.includes('color')) res = await sb().from('group_members').select('user_id, username').eq('group_id', groupId) as typeof res;
+  const { data: members, error } = res;
   if (error) throw error;
   const { data: blocks, error: e2 } = await sb().from('busy_blocks').select('user_id, weekday, start_min, end_min').eq('group_id', groupId);
   if (e2) throw e2;
   return (members ?? []).map((m) => ({
     userId: m.user_id,
     displayName: m.username,
+    color: (m as { color?: string | null }).color ?? undefined,
     blocks: (blocks ?? [])
       .filter((b) => b.user_id === m.user_id)
       .map((b) => ({ weekday: b.weekday, startMin: b.start_min, endMin: b.end_min })),
@@ -132,6 +136,20 @@ export async function addActivity(groupId: string, a: { title: string; day: stri
   if (error) throw error;
 }
 
+export async function updateActivity(id: string, a: { title: string; day: string; startMin: number; endMin: number; place: string; repeat: ActivityRepeat }) {
+  const { data, error } = await sb().from('group_activities').update({
+    title: a.title.trim(), day: a.day, start_min: a.startMin, end_min: a.endMin, place: a.place.trim() || null, repeat: a.repeat,
+  }).eq('id', id).select('id');
+  if (error) throw error;
+  if (!data?.length) throw new Error('Could not save the change. Only group members can edit group activities.');
+}
+
+export async function deleteActivities(ids: string[]) {
+  const { data, error } = await sb().from('group_activities').delete().in('id', ids).select('id');
+  if (error) throw error;
+  if ((data?.length ?? 0) < ids.length) throw new Error('Some activities could not be deleted.');
+}
+
 export async function deleteActivity(id: string) {
   const { error } = await sb().from('group_activities').delete().eq('id', id);
   if (error) throw error;
@@ -149,13 +167,13 @@ export function nextDateFor(weekday: number) {
 }
 
 /** The group's optional description, and whether you created the group (only the creator can edit it). */
-export async function loadGroupInfo(groupId: string): Promise<{ description: string; isOwner: boolean; ownerId?: string }> {
+export async function loadGroupInfo(groupId: string): Promise<{ description: string; isOwner: boolean; ownerId?: string; myId?: string }> {
   const [{ data, error }, { data: me }] = await Promise.all([
     sb().from('groups').select('description, owner').eq('id', groupId).single(),
     sb().auth.getUser(),
   ]);
   if (error) throw error;
-  return { description: data?.description ?? '', isOwner: !!me.user && data?.owner === me.user.id, ownerId: data?.owner };
+  return { description: data?.description ?? '', isOwner: !!me.user && data?.owner === me.user.id, ownerId: data?.owner, myId: me.user?.id };
 }
 
 export async function setGroupDescription(groupId: string, description: string) {
@@ -184,4 +202,10 @@ export async function loadGroupSummary(groupId: string): Promise<{ description: 
     sb().from('group_members').select('username').eq('group_id', groupId).order('joined_at'),
   ]);
   return { description: g.data?.description ?? '', members: (m.data ?? []).map((r) => r.username) };
+}
+
+/** Sets your own color in a group. Fails if another member already has it. */
+export async function setMyColor(groupId: string, color: string) {
+  const { error } = await sb().rpc('set_my_color', { gid: groupId, c: color });
+  if (error) throw new Error(error.message.includes('already') ? 'Someone in this group already uses that color.' : error.message);
 }
