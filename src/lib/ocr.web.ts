@@ -5,7 +5,7 @@
 // PDFs are turned into a picture and read with Tesseract. Nothing is uploaded:
 // the files and the OCR engine both stay in this browser. The engine files are
 // served from /assets/ocr (copied from the tesseract.js and pdfjs-dist packages).
-import { groupIntoRows, parseScheduleText, readTable, type PositionedLine, type TableRegions } from './parser';
+import { groupIntoRows, parseScheduleText, readGrid, readTable, type PositionedLine, type TableRegions } from './parser';
 import type { ExtractedEvent } from './types';
 
 export class OcrUnavailableError extends Error {}
@@ -70,7 +70,7 @@ async function ocr(image: string | HTMLCanvasElement, onProgress?: Progress, psm
 
 function finish(lines: PositionedLine[]): OcrResult {
   const rows = groupIntoRows(lines);
-  return { rows, events: readTable(lines) ?? parseScheduleText(rows) };
+  return { rows, events: readGrid(lines) ?? readTable(lines) ?? parseScheduleText(rows) };
 }
 
 // --- Cleaning up photos before reading ---------------------------------------

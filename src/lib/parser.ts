@@ -50,13 +50,15 @@ export function groupIntoRows(lines: PositionedLine[]): string[] {
     );
 }
 
-const T = String.raw`\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|am|pm|a|p|h)?`;
-const RANGE = new RegExp(String.raw`(${T})\s*(?:-|–|—|to)\s*(${T})`, 'i');
-const ROOM = /\b(?:room|rm\.?|lab|bldg\.?|building)\s*[#:.]?\s*[A-Z0-9][A-Z0-9-]*\b(?:\s*,?\s*(?:bldg\.?|building)\s*[A-Z0-9]+)?/i;
+const T = String.raw`(?:noon|midnight|(?<![\d:.])\d{4}(?![\d:])|\d{1,2}(?:[:.]\d{2})?)\s*(?:a\.?m\.?|p\.?m\.?|am|pm|nn|mn|noon|a|p|h|hrs)?(?![a-z])`;
+const RANGE = new RegExp(String.raw`(${T})\s*(?:-|–|—|to|until|till)\s*(${T})`, 'i');
+// "Room 204", "Rm. 3", "Lab 2", "Smith Hall 120", "Conference Room A", "Bldg 4"
+const ROOM_WORD = String.raw`(?:[Rr]oom|ROOM|[Rr]m\.?|RM\.?|[Ll]ab|LAB|[Bb]ldg\.?|BLDG\.?|[Bb]uilding|BUILDING|[Hh]all|HALL)`;
+const ROOM = new RegExp(String.raw`(?:\b[A-Z][a-z]+\s+(?=(?:[Hh]all|HALL|[Rr]oom|ROOM)\b))?\b${ROOM_WORD}\s*[#:.]?\s*[A-Z0-9][A-Z0-9-]*\b(?:\s*,?\s*(?:[Bb]ldg\.?|[Bb]uilding)\s*[A-Z0-9]+)?`);
 // Short room labels printed on registration forms: "CL 2", "CR-5", "Gym", "AVR".
 const ROOM_SHORT = /\b(?:(?:CL|CR|LR|SL|ML|RM)\s?-?\d{1,3}[A-Z]?|GYM|AVR|FIELD|COURT|LIBRARY|TBA)\b/i;
 // "IT311", "IT 311", "GE-ELEC 2", "CS 101L"
-const COURSE_CODE = /^(?:\d{3,6}\s+)?([A-Z]{2,5}(?:-[A-Z]{2,5})?)\s?-?(\d{1,4}[A-Z]?)\s+(.{3,})$/;
+const COURSE_CODE = /^(?:\d{3,6}\s+)?([A-Z]{2,5}(?:-[A-Z]{2,5})?)\s?-?(\d{1,4}[A-Za-z]?)\s+(.{3,})$/;
 // Named rooms printed in full ("COLLEGE COMLAB"), including common OCR misreads of it.
 const ROOM_NAMED = /\bC[A-Za-z0-9]{3,7}\s+C[O0][MN][A-Za-z]{2,4}\b|\b[A-Z]*(?:COMLAB|LAB(?:ORATORY)?|HALL|AUDITORIUM)\b/;
 function tidyRoom(raw: string) {
@@ -95,13 +97,22 @@ function readRange(text: string) {
     end = guessDaytime(end);
     if (end <= start) end += 12 * 60;
   }
-  if (end <= start || end > 24 * 60) return undefined;
+  // "1350-1440" style: reject year spans like "2026-2027".
+  if (/^\d{4}/.test(m[1].trim()) && /^\d{4}/.test(m[2].trim()) && Math.abs(end - start) < 10) return undefined;
+  // Night shifts run past midnight ("10pm-6am", "22:00-06:00").
+  if (end <= start && (a.explicitMeridiem && b.explicitMeridiem)) end += 24 * 60;
+  if (end <= start || end > 48 * 60) return undefined;
   return { start, end, sure, span: m[0] };
 }
 
-type DayHit = { days: Weekday[]; strong: boolean; span: string; without: string };
+type DayHit = { days: Weekday[]; strong: boolean; span: string; without: string; group?: boolean };
 
-const DAY_NAMES_RE = /^(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)$/i;
+const DAY_NAMES_RE = /^(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)s?$/i;
+// Words that stand for several days.
+const DAY_GROUPS: Record<string, Weekday[]> = {
+  weekdays: [1, 2, 3, 4, 5], weekday: [1, 2, 3, 4, 5], weekends: [6, 0], weekend: [6, 0],
+  daily: [0, 1, 2, 3, 4, 5, 6], everyday: [0, 1, 2, 3, 4, 5, 6],
+};
 const NAME_DAY: Record<string, Weekday> = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 0 };
 const CODE_DAY: Record<string, Weekday> = { m: 1, t: 2, w: 3, th: 4, r: 4, f: 5, s: 6, sa: 6, su: 0 };
 
@@ -123,6 +134,7 @@ function readCode(tok: string): { days: Weekday[]; strong: boolean } | undefined
 
 function readDayToken(tok: string): { days: Weekday[]; strong: boolean } | undefined {
   const clean = tok.replace(/\.$/, '');
+  if (DAY_GROUPS[clean.toLowerCase()]) return { days: DAY_GROUPS[clean.toLowerCase()], strong: true };
   if (DAY_NAMES_RE.test(clean)) return { days: [NAME_DAY[clean.slice(0, 3).toLowerCase()]], strong: true };
   return readCode(clean);
 }
@@ -132,7 +144,9 @@ function readDayToken(tok: string): { days: Weekday[]; strong: boolean } | undef
  * and codes ("MWF", "TTh", "M", "m", "mwf"), alone or joined by spaces, "/", "-", "," or "&"
  * ("M/W", "T TH", "Mon-Wed-Fri"). All-lowercase single letters are marked for review.
  */
-function readDays(text: string): DayHit | undefined {
+function readDays(input: string): DayHit | undefined {
+  // "every day" -> one word, kept the same length so positions line up.
+  const text = input.replace(/\b(every)(\s+)(day)\b/gi, (_m, a, sp, c) => `${a}${c}`.padEnd(a.length + sp.length + c.length, ' '));
   const words = [...text.matchAll(/[A-Za-z]+\.?/g)];
   let best: { from: number; to: number; days: Weekday[]; strong: boolean; score: number } | undefined;
   for (let i = 0; i < words.length; i++) {
@@ -143,32 +157,52 @@ function readDays(text: string): DayHit | undefined {
     const days: Weekday[] = [];
     let strong = true;
     let letters = 0;
+    let ranged = false;
+    let dashes = 0;
+    let tokens = 0;
     while (j < words.length) {
       const w = words[j];
       const after = text[w.index! + w[0].length];
       if (after && /\w/.test(after)) break;
+      // "to", "thru", "and" between two days are joiners, not days.
+      if (j > i && /^(?:to|thru|through|until|and)$/i.test(w[0]) && j + 1 < words.length && readDayToken(words[j + 1][0])) {
+        ranged ||= !/^and$/i.test(w[0]);
+        j++;
+        continue;
+      }
       const d = readDayToken(w[0]);
       if (!d) break;
       if (j > i) {
         const gap = text.slice(words[j - 1].index! + words[j - 1][0].length, w.index!);
         if (!/^\s*[/&,\-–]?\s*$/.test(gap) || gap.length > 3) break;
+        if (/[-–]/.test(gap)) dashes++;
       }
       days.push(...d.days);
+      tokens++;
       strong &&= d.strong;
       letters += w[0].length;
       j++;
     }
-    if (j === i) continue;
+    if (j === i || tokens === 0) continue;
+    // "Mon-Fri", "M-F", "Monday to Friday" mean every day between; "Mon-Wed-Fri" is a list.
+    if (tokens === 2 && (ranged || dashes === 1) && days.length === 2) {
+      const [a, b] = days;
+      days.length = 0;
+      for (let k = a; ; k = ((k + 1) % 7) as Weekday) { days.push(k); if (k === b || days.length > 7) break; }
+    }
     const tail = text.slice(words[j - 1].index! + words[j - 1][0].length);
     // "Rm 108" is a room and "JUAN M." an initial, not days.
     if (!strong && /^\s*\d/.test(tail)) continue;
     if (j - i === 1 && /^[A-Z]\.$/.test(words[i][0]) && /[A-Z]{2,}\s*,?\s*$/.test(text.slice(0, words[i].index!))) continue;
     // A lone lowercase letter or two is weak evidence; prefer longer, capitalised runs.
-    const score = letters + (strong ? 10 : 0) + (j - i);
+    // Group words ("Daily") lose to named days, which may also appear ("Daily standup Mon-Fri").
+    const group = j - i === 1 && !!DAY_GROUPS[words[i][0].toLowerCase()];
+    const score = group ? 1 : letters + (strong ? 10 : 0) + (j - i);
     if (!best || score > best.score) best = { from: words[i].index!, to: words[j - 1].index! + words[j - 1][0].length, days: [...new Set(days)], strong, score };
   }
   if (best) {
-    return { days: best.days, strong: best.strong, span: text.slice(best.from, best.to), without: text.slice(0, best.from) + ' ' + text.slice(best.to) };
+    const span = text.slice(best.from, best.to);
+    return { days: best.days, strong: best.strong, span, without: input.slice(0, best.from) + ' ' + input.slice(best.to), group: !!DAY_GROUPS[span.toLowerCase()] };
   }
   // OCR sometimes adds a stray letter to a day code ("MWEF" for "MWF").
   const noisy = text.match(/\b[MTWFS][MTWFSEhH]{1,5}\b/);
@@ -215,7 +249,7 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     // Each time slot may carry its own day ("01:00-03:40 PM Fri  03:40-07:00 PM Fri").
     const dayList: { days: Weekday[]; strong: boolean }[] = [];
     // A later single letter is more likely an initial ("JUAN M.") than a day.
-    for (let d = readDays(rest); d && dayList.length < 4 && (!dayList.length || d.span.length >= 3); d = readDays(rest)) {
+    for (let d = readDays(rest); d && dayList.length < 4 && (!dayList.length || (d.span.length >= 3 && !d.group)); d = readDays(rest)) {
       dayList.push(d);
       rest = d.without;
     }
@@ -223,7 +257,7 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     let location: string | undefined;
     const room = rest.match(ROOM);
     if (room) {
-      location = room[0].replace(/^rm\.?/i, 'Room').replace(/\s+/g, ' ').trim();
+      location = room[0].replace(/\brm\.?(?=\s|\d|$)/i, 'Room').replace(/\s+/g, ' ').trim();
       rest = rest.replace(room[0], ' ');
     } else {
       const named = rest.match(ROOM_NAMED);
@@ -263,7 +297,7 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
       .replace(/(?:^|\s)\d{1,2}\.\d{1,2}(?=\s|$)/g, ' ')
       // Several bare numbers in a row are unit/hour columns; one alone may be part of the name ("Programming 1").
       .replace(/(?:\s\d{1,2}){2,}(?=\s|$)/g, ' ')
-      .replace(/\b(?:LEC|LAB|UNITS?)\b/gi, ' '));
+      .replace(/\b(?:LEC|UNITS?)\b/gi, ' '));
     // An all-capitals name after a normal-case title is the professor ("Data Structures  GAYUTIN RONILO B.").
     if (!organizer) {
       const caps = title.match(/(?:^|\s)((?:[A-Z][A-Z'.-]+|[A-Z]\.?)(?:\s+(?:[A-Z][A-Z'.-]+|[A-Z]\.?)){1,5})$/);
@@ -281,6 +315,16 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     }
     // Drop OCR crumbs: short lowercase bits and stray symbols ("usu", "»").
     title = cleanTitle(title.replace(/^(?:[a-z]{1,4}\s+)+/, '').replace(/(?:^|\s)[^\w\s&'()-]+(?=\s|$)/g, ' '));
+    // Leftover joiners and labels: "every", "with", "Section A", "Shift:", empty " - - " separators.
+    title = cleanTitle(title
+      .replace(/\b(?:section|sec\.)\s*[A-Z0-9][A-Z0-9-]*\b/gi, ' ')
+      .replace(/(?:^|\s)every(?=\s|$)/gi, ' ')
+      .replace(/(?:\s+[-–|:,;/](?=\s|$))+/g, ' ')
+      .replace(/\s+(?:with|by|at|@|on|from|in)$/i, '')
+      .replace(/:$/, ''));
+    // "Gym 6-7 PM" or "Physics Lab 2": a place that is the whole name stays the name.
+    if (!title && courseCode) title = courseCode;
+    if (!title && location) { title = location; location = undefined; }
 
     // A row with only a time and room continues the class above it.
     const continues = !courseCode && !/[a-z]{3}/i.test(title) && last;
@@ -310,7 +354,13 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
       if (!days) {
         out.push({ ...timed, weekday: field<Weekday>(undefined, 'missing') });
       } else {
-        for (const day of days.days) out.push({ ...timed, weekday: field(day, days.strong ? 'high' : 'low') });
+        for (const day of days.days) {
+          const weekday = field(day, days.strong ? 'high' : 'low');
+          if (range.end <= 24 * 60) { out.push({ ...timed, weekday }); continue; }
+          // Past midnight: the rest of the shift goes on the next day.
+          out.push({ ...timed, endMin: field(24 * 60, timed.endMin.confidence), weekday });
+          out.push({ ...timed, startMin: field(0, timed.startMin.confidence), endMin: field(range.end - 24 * 60, timed.endMin.confidence), weekday: field(((day + 1) % 7) as Weekday, weekday.confidence) });
+        }
       }
     });
   }
@@ -377,7 +427,7 @@ export function readTable(lines: PositionedLine[], regions?: TableRegions): Extr
 
   // Class names: the widest text left of the times, with lowercase letters.
   const left = body.filter((c) => c.right <= col + 10);
-  const descs = left.filter((c) => /[a-z]{4}/.test(c.text) && c.right - c.x > 120);
+  const descs = left.filter((c) => /[a-z]{4}/.test(c.text) && (c.right - c.x > 120 || /\s/.test(c.text) || /^[A-Z][a-z]{4,}$/.test(c.text)));
   if (!descs.length) return undefined;
   const descX = Math.min(...descs.map((d) => d.x));
   const codes = left.filter((c) => c.right <= descX + 5);
@@ -405,8 +455,10 @@ export function readTable(lines: PositionedLine[], regions?: TableRegions): Extr
   for (const s of slots) {
     const owner = ownerOf(s.y);
     const sameLine = right.filter((c) => Math.abs(c.y - s.y) < 12 && c.x < profX);
+    // Some forms put the days before the time ("MWF  8:00-9:00 AM").
+    const leftDays = left.filter((c) => Math.abs(c.y - s.y) < 12 && !descs.includes(c) && !codes.includes(c) && readDays(c.text) && cleanTitle(readDays(c.text)!.without).length === 0);
     let location: string | undefined;
-    let days: { days: Weekday[]; strong: boolean } | undefined;
+    let days: { days: Weekday[]; strong: boolean } | undefined = leftDays.length ? readDays(leftDays[0].text) : undefined;
     for (const c of sameLine) {
       const d = readDays(c.text);
       if (d && cleanTitle(d.without).length === 0) { days = d; continue; }
@@ -431,4 +483,119 @@ export function readTable(lines: PositionedLine[], regions?: TableRegions): Extr
     else for (const day of days.days) out.push({ ...timed, weekday: field(day, days.strong ? 'high' : 'low') });
   }
   return out;
+}
+
+// --- Timetable grids -----------------------------------------------------------
+// Many schedules are a grid: days across the top, times down the left, and each
+// class written in its day's column at its time. Work rosters swap the times for
+// names and write the shift ("9-5", "OFF") in each day's cell.
+
+const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function hhmm(min: number) {
+  const h = Math.floor(min / 60) % 24, m = min % 60;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+/** One time written alone in the time column ("7:00", "8:30 AM", "13:00"). */
+function readOneTime(text: string): number | undefined {
+  const m = text.trim().match(/^(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.|nn)?)$/i);
+  const t = m && parseTime(m[1]);
+  return t ? (t.explicitMeridiem ? t.minutes : guessDaytime(t.minutes)) : undefined;
+}
+
+export function readGrid(lines: PositionedLine[]): ExtractedEvent[] | undefined {
+  const cells = lines.filter((l) => l.frame).map((l) => ({ text: l.text.trim(), x: l.frame!.left, right: l.frame!.left + l.frame!.width, top: l.frame!.top, bottom: l.frame!.top + l.frame!.height, h: l.frame!.height }));
+  // Split cells that hold several words far apart (one OCR line across columns).
+  // Day names, times and "OFF" are always their own cell, even when OCR ran them together.
+  const special = (w: string) => /^(?:off)$/i.test(w) || !!readRange(w) || (!!readDayToken(w) && w.length >= 3);
+  const parts = cells.flatMap((c) => {
+    const per = (c.right - c.x) / Math.max(1, c.text.length);
+    const pieces: { text: string; at: number }[] = [];
+    for (const m of c.text.matchAll(/[^|\s]+(?: [^|\s]+)*/g)) {
+      let run: { text: string; at: number } | undefined;
+      for (const w of m[0].matchAll(/\S+/g)) {
+        const at = m.index! + w.index!;
+        if (special(w[0])) { if (run) pieces.push(run); run = undefined; pieces.push({ text: w[0], at }); }
+        else if (run) run.text += ' ' + w[0];
+        else run = { text: w[0], at };
+      }
+      if (run) pieces.push(run);
+    }
+    return pieces.map((p) => ({ ...c, text: p.text, x: c.x + per * p.at, right: c.x + per * (p.at + p.text.length) }));
+  });
+  // The header: three or more cells on one line that are each just a day.
+  const dayCells = parts.map((c) => ({ c, d: readDays(c.text) })).filter(({ c, d }) => d && d.days.length === 1 && cleanTitle(d.without).length === 0 && d.strong);
+  let header: typeof dayCells = [];
+  for (const a of dayCells) {
+    const row = dayCells.filter((b) => Math.abs(b.c.top - a.c.top) < a.c.h);
+    const distinct = new Set(row.map((r) => r.d!.days[0]));
+    if (distinct.size >= 3 && distinct.size > new Set(header.map((r) => r.d!.days[0])).size) header = row;
+  }
+  if (header.length < 3) return undefined;
+  const cols = header.map(({ c, d }) => ({ day: d!.days[0], cx: (c.x + c.right) / 2 })).sort((a, b) => a.cx - b.cx);
+  const gap = Math.min(...cols.slice(1).map((c, i) => c.cx - cols[i].cx));
+  const headBottom = Math.max(...header.map((h) => h.c.bottom));
+  const firstX = cols[0].cx - gap / 2;
+  const colOf = (cx: number) => cols.find((c) => Math.abs(c.cx - cx) < gap / 2);
+
+  // Table borders read as "—", "_" or "|" are not entries.
+  const below = parts.filter((c) => c.top > headBottom - 2 && /[A-Za-z0-9]/.test(c.text));
+  // Row labels: what sits left of the first day column.
+  const labels = below.filter((c) => (c.x + c.right) / 2 < firstX && /[A-Za-z]{2}|\d/.test(c.text)).sort((a, b) => a.top - b.top);
+  const timeLabels = labels.map((l) => ({ l, r: readRange(l.text), t: readOneTime(l.text) })).filter((x) => x.r || x.t !== undefined);
+  const byTime = timeLabels.length >= 2 && timeLabels.length >= labels.length / 2;
+  const rows = (byTime ? timeLabels.map((x) => ({ top: (x.l.top + x.l.bottom) / 2, start: x.r ? x.r.start : x.t!, end: x.r?.end, label: '' }))
+    : labels.map((l) => ({ top: (l.top + l.bottom) / 2, start: undefined as number | undefined, end: undefined as number | undefined, label: l.text })));
+  if (!rows.length) return undefined;
+  // A row is the label whose line is nearest; labels sit in the middle of tall rows.
+  const rowAt = (y: number) => rows.reduce((b, r, i) => (Math.abs(r.top - y) < Math.abs(rows[b].top - y) ? i : b), 0);
+
+  // Lines in one column that touch each other belong to the same entry.
+  // Typical text height; OCR boxes that include table borders are taller than the text.
+  const hs = below.map((c) => c.h).sort((a, b) => a - b);
+  const lineH = hs[Math.floor(hs.length / 4)] ?? 20;
+  type Block = { day: Weekday; top: number; bottom: number; first: number; lastMid: number; h: number; text: string[] };
+  const blocks: Block[] = [];
+  for (const c of below.filter((c) => (c.x + c.right) / 2 >= firstX).sort((a, b) => a.top - b.top)) {
+    const col = colOf((c.x + c.right) / 2);
+    if (!col) continue;
+    const prev = blocks.filter((b) => b.day === col.day).pop();
+    // Box edges include borders, so lines are compared by their middles. Two shifts never join.
+    const mid = (c.top + c.bottom) / 2;
+    const near = prev && mid - prev.lastMid < lineH * 2.2 && (!byTime || rowAt(mid) === rowAt(prev.first));
+    if (prev && near && !(special(c.text) && special(prev.text[prev.text.length - 1]))) { prev.text.push(c.text); prev.bottom = c.bottom; prev.lastMid = (c.top + c.bottom) / 2; }
+    else blocks.push({ day: col.day, top: c.top, bottom: c.bottom, first: (c.top + c.bottom) / 2, lastMid: (c.top + c.bottom) / 2, h: c.h, text: [c.text] });
+  }
+  // Joins the same entry written again in the next time row (a class spanning rows).
+  const merged: Block[] = [];
+  for (const b of blocks.sort((a, z) => a.day - z.day || a.top - z.top)) {
+    const last = merged[merged.length - 1];
+    if (byTime && last && last.day === b.day && last.text.join(' ') === b.text.join(' ') && rowAt(b.first) - rowAt(last.lastMid) <= 1) { last.bottom = b.bottom; last.lastMid = b.lastMid; continue; }
+    merged.push({ ...b, text: [...b.text] });
+  }
+
+  const out: ExtractedEvent[] = [];
+  for (const b of merged) {
+    const text = b.text.join(' ');
+    if (/^(?:off|rest ?day|day ?off|-+|—|x)$/i.test(text)) continue;
+    const own = readRange(text);
+    let line: string;
+    let endGuessed = false;
+    if (own) {
+      const r = rows[rowAt(b.first)];
+      line = `${!byTime && r?.label ? r.label + ' ' : ''}${text} ${DAY_LONG[b.day]}`;
+    } else if (byTime) {
+      const first = rowAt(b.first), last = rowAt(b.lastMid);
+      const start = rows[first].start!;
+      const end = rows[last].end ?? rows[last + 1]?.start ?? start + (rows[1].start! - rows[0].start!);
+      endGuessed = !rows[last].end && last === first && !rows[last + 1];
+      line = `${text} ${DAY_LONG[b.day]} ${hhmm(start)} - ${hhmm(end)}`;
+    } else continue;
+    for (const e of parseScheduleText(line)) {
+      if (e.weekday.value !== b.day && e.weekday.value !== (b.day + 1) % 7) continue;
+      out.push({ ...e, endMin: endGuessed ? { ...e.endMin, confidence: 'low' } : e.endMin, sourceText: `${DAY_LONG[b.day]}: ${text}` });
+    }
+  }
+  return out.length ? out : undefined;
 }

@@ -32,7 +32,11 @@ export interface ParsedTime {
  * Returns undefined if the text is not a time.
  */
 export function parseTime(raw: string): ParsedTime | undefined {
-  const s = raw.trim().toLowerCase().replace(/\s+/g, '').replace(/\./g, '');
+  let s = raw.trim().toLowerCase().replace(/\s+/g, '').replace(/\./g, '').replace(/hrs$/, 'h');
+  // "noon", "12nn" (Philippine noon), "midnight", "12mn"
+  if (s === 'noon') s = '12pm';
+  if (s === 'midnight') s = '12am';
+  s = s.replace(/(?:nn|noon)$/, 'pm').replace(/mn$/, 'am');
   const m = s.match(/^(\d{1,2})(?::?(\d{2}))?(am|pm|a|p|h)?$/);
   if (!m) return undefined;
   let h = Number(m[1]);
