@@ -24,3 +24,22 @@ test('reads a registration form by column, giving each second time line to its c
   assert.equal(ev[0].organizer.value, 'ARMILDEZ MARIA RIZZA L.');
   assert.equal(ev[3].weekday.confidence, 'low');
 });
+
+import { parseScheduleText } from '../parser';
+
+test('reads short day forms in any case', () => {
+  const cases: [string, number[]][] = [['MON', [1]], ['mon', [1]], ['M', [1]], ['m', [1]], ['th', [4]], ['TTh', [2, 4]], ['mwf', [1, 3, 5]], ['M/W', [1, 3]], ['T TH', [2, 4]], ['Sa', [6]], ['su', [0]]];
+  for (const [form, days] of cases) {
+    const ev = parseScheduleText(`IT 101 Programming ${form} 9:00-10:00 AM`);
+    assert.deepEqual(ev.map((e) => e.weekday.value), days, form);
+    assert.equal(ev[0].title.value, 'Programming', form);
+  }
+});
+
+test('keeps an instructor that the schedule names', () => {
+  const org = (l: string) => parseScheduleText(l)[0].organizer.value;
+  assert.equal(org('IT 101 Programming MWF 9:00-10:00 AM Instructor: Juan Dela Cruz'), 'Juan Dela Cruz');
+  assert.equal(org('Math 1 TTh 1:00-2:30 PM Teacher: maria santos'), 'maria santos');
+  assert.equal(org('HCI II MW 10:00-12:00 PM Room 204 Ms. De Juan'), 'Ms. De Juan');
+  assert.equal(org('IT 101 Programming MWF 9:00-10:00 AM Rm 204 Professor DELA CRUZ, JUAN M.'), 'DELA CRUZ, JUAN M.');
+});

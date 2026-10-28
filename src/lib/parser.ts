@@ -67,11 +67,9 @@ function tidyRoom(raw: string) {
 function merge(list: { days: Weekday[]; strong: boolean }[]) {
   return { days: [...new Set(list.flatMap((d) => d.days))], strong: list.every((d) => d.strong) };
 }
-const ORGANIZER = /\b(?:[Pp]rof|PROF|[Dd]r|DR|[Mm]rs?|MRS?|[Mm]s|MS|[Ee]ngr|ENGR|[Ss]ir|[Mm]a'?am)\.?\s+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,3}/;
-const ORGANIZER_LABEL = /\b(?:instructor|teacher|faculty|organizer)\s*[:\-]\s*([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,3})/i;
-const DAY_WORD = /\b(?:mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b(?:\s*[/&,-]\s*\b(?:mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b)*/i;
-// Packed codes are only trusted in capitals: "MWF", "TTh", "M", "Th".
-const DAY_CODE = /\b(?:M|T|W|Th|TH|F|S|Su|Sa|R)(?:M|T|W|Th|TH|F|S|Su|Sa|R)*\b/;
+const ORGANIZER = /\b(?:[Pp]rof(?:essor)?|PROF(?:ESSOR)?|[Dd]r|DR|[Mm]rs?|MRS?|[Mm]s|MS|[Ee]ngr|ENGR|[Ss]ir|SIR|[Mm]a'?am|MA'?AM|[Aa]tty|ATTY|[Tt]chr|TCHR)\.?\s+[A-Z][\w.'-]*(?:,?\s+[A-Z][\w.'-]*){0,3}/;
+// "Instructor: Juan Dela Cruz", "Prof - DELA CRUZ, JUAN M.", "Teacher Ana Reyes", "Faculty: santos"
+const ORGANIZER_LABEL = /\b(?:instructors?|instr\.?|teachers?|faculty|professors?|lecturers?|advis[eo]rs?|organizers?|facilitators?|speakers?|handled by|taught by)\s*[:\-–]?\s+([A-Za-z][\w.'-]*(?:,?\s+[A-Za-z][\w.'-]*){0,4})/i;
 
 function field<T>(value: T | undefined, confidence: Confidence): ExtractedField<T> {
   return value === undefined ? { value: undefined, confidence: 'missing' } : { value, confidence };
@@ -101,29 +99,82 @@ function readRange(text: string) {
   return { start, end, sure, span: m[0] };
 }
 
-function readDays(text: string): { days: Weekday[]; strong: boolean; span: string } | undefined {
-  const word = text.match(DAY_WORD);
-  if (word) {
-    const d = parseDays(word[0]);
-    if (d) return { ...d, span: word[0] };
+type DayHit = { days: Weekday[]; strong: boolean; span: string; without: string };
+
+const DAY_NAMES_RE = /^(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)$/i;
+const NAME_DAY: Record<string, Weekday> = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 0 };
+const CODE_DAY: Record<string, Weekday> = { m: 1, t: 2, w: 3, th: 4, r: 4, f: 5, s: 6, sa: 6, su: 0 };
+
+/** Packed codes in one consistent case: "MWF", "TTh", "TTH", "mwf", "tth", "M", "m". */
+function readCode(tok: string): { days: Weekday[]; strong: boolean } | undefined {
+  const upper = /^(?:TH|SU|SA|[MTWRFS])+$/.test(tok) || /^(?:Th|Su|Sa|[MTWRFS])+$/.test(tok);
+  const lower = /^(?:th|su|sa|[mtwrfs])+$/.test(tok);
+  // OCR sometimes lowers the second letter ("Mw").
+  const mixed = !upper && !lower && /^[MTWRFS](?:th|su|sa|[mtwrfs])+$/.test(tok);
+  if (!upper && !lower && !mixed) return undefined;
+  const days: Weekday[] = [];
+  const t = tok.toLowerCase();
+  for (let i = 0; i < t.length; ) {
+    const two = t.slice(i, i + 2);
+    if (CODE_DAY[two] !== undefined && two.length === 2) { days.push(CODE_DAY[two]); i += 2; } else { days.push(CODE_DAY[t[i]]); i += 1; }
   }
-  const code = text.match(DAY_CODE);
-  if (code) {
-    const d = parseDays(code[0]);
-    if (d) return { ...d, span: code[0] };
+  return { days: [...new Set(days)], strong: upper };
+}
+
+function readDayToken(tok: string): { days: Weekday[]; strong: boolean } | undefined {
+  const clean = tok.replace(/\.$/, '');
+  if (DAY_NAMES_RE.test(clean)) return { days: [NAME_DAY[clean.slice(0, 3).toLowerCase()]], strong: true };
+  return readCode(clean);
+}
+
+/**
+ * Finds the days in a line: names ("Monday", "MON", "mon"), short forms ("Tues", "Thurs")
+ * and codes ("MWF", "TTh", "M", "m", "mwf"), alone or joined by spaces, "/", "-", "," or "&"
+ * ("M/W", "T TH", "Mon-Wed-Fri"). All-lowercase single letters are marked for review.
+ */
+function readDays(text: string): DayHit | undefined {
+  const words = [...text.matchAll(/[A-Za-z]+\.?/g)];
+  let best: { from: number; to: number; days: Weekday[]; strong: boolean; score: number } | undefined;
+  for (let i = 0; i < words.length; i++) {
+    const before = text[words[i].index! - 1];
+    if (before && /[\w]/.test(before)) continue; // part of a code like "IT101"
+    if (/^(?:Ms|MS|Mrs|Sr|St)\.?$/.test(words[i][0]) && /^\.?\s+[A-Z]/.test(text.slice(words[i].index! + words[i][0].length - (words[i][0].endsWith('.') ? 1 : 0)))) continue; // "Ms. De Juan"
+    let j = i;
+    const days: Weekday[] = [];
+    let strong = true;
+    let letters = 0;
+    while (j < words.length) {
+      const w = words[j];
+      const after = text[w.index! + w[0].length];
+      if (after && /\w/.test(after)) break;
+      const d = readDayToken(w[0]);
+      if (!d) break;
+      if (j > i) {
+        const gap = text.slice(words[j - 1].index! + words[j - 1][0].length, w.index!);
+        if (!/^\s*[/&,\-–]?\s*$/.test(gap) || gap.length > 3) break;
+      }
+      days.push(...d.days);
+      strong &&= d.strong;
+      letters += w[0].length;
+      j++;
+    }
+    if (j === i) continue;
+    const tail = text.slice(words[j - 1].index! + words[j - 1][0].length);
+    // "Rm 108" is a room and "JUAN M." an initial, not days.
+    if (!strong && /^\s*\d/.test(tail)) continue;
+    if (j - i === 1 && /^[A-Z]\.$/.test(words[i][0]) && /[A-Z]{2,}\s*,?\s*$/.test(text.slice(0, words[i].index!))) continue;
+    // A lone lowercase letter or two is weak evidence; prefer longer, capitalised runs.
+    const score = letters + (strong ? 10 : 0) + (j - i);
+    if (!best || score > best.score) best = { from: words[i].index!, to: words[j - 1].index! + words[j - 1][0].length, days: [...new Set(days)], strong, score };
+  }
+  if (best) {
+    return { days: best.days, strong: best.strong, span: text.slice(best.from, best.to), without: text.slice(0, best.from) + ' ' + text.slice(best.to) };
   }
   // OCR sometimes adds a stray letter to a day code ("MWEF" for "MWF").
-  // Use the corrected days but mark them for review.
   const noisy = text.match(/\b[MTWFS][MTWFSEhH]{1,5}\b/);
   if (noisy) {
     const d = parseDays(noisy[0].replace(/[EH]/g, (c) => (c === 'H' ? 'h' : '')));
-    if (d) return { days: d.days, strong: false, span: noisy[0] };
-  }
-  // OCR often drops capitals ("Mw" for "MW"). Read it, but ask the user to check.
-  const lower = text.match(/\b[MTWFS][mtwfsh]{1,4}\b/);
-  if (lower) {
-    const d = parseDays(lower[0].replace(/h/g, '\u0000').toUpperCase().replace(/\u0000/g, 'h'));
-    if (d) return { days: d.days, strong: false, span: lower[0] };
+    if (d) return { days: d.days, strong: false, span: noisy[0], without: text.slice(0, noisy.index!) + ' ' + text.slice(noisy.index! + noisy[0].length) };
   }
   return undefined;
 }
@@ -158,7 +209,7 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     }
     if (!ranges.length) {
       const d = readDays(line);
-      if (d && cleanTitle(line.replace(d.span, '')).length === 0) headingDay = d;
+      if (d && cleanTitle(d.without).length === 0) headingDay = d;
       continue;
     }
     // Each time slot may carry its own day ("01:00-03:40 PM Fri  03:40-07:00 PM Fri").
@@ -166,7 +217,7 @@ export function parseScheduleText(input: string | string[]): ExtractedEvent[] {
     // A later single letter is more likely an initial ("JUAN M.") than a day.
     for (let d = readDays(rest); d && dayList.length < 4 && (!dayList.length || d.span.length >= 3); d = readDays(rest)) {
       dayList.push(d);
-      rest = rest.replace(d.span, ' ');
+      rest = d.without;
     }
 
     let location: string | undefined;
@@ -358,7 +409,7 @@ export function readTable(lines: PositionedLine[], regions?: TableRegions): Extr
     let days: { days: Weekday[]; strong: boolean } | undefined;
     for (const c of sameLine) {
       const d = readDays(c.text);
-      if (d && cleanTitle(c.text.replace(d.span, '')).length === 0) { days = d; continue; }
+      if (d && cleanTitle(d.without).length === 0) { days = d; continue; }
       const fuzzy = fuzzyDay(c.text);
       if (fuzzy !== undefined) { days = { days: [fuzzy], strong: false }; continue; }
       if (!location && /[A-Za-z]{2}/.test(c.text) && !/^\d/.test(c.text)) {
